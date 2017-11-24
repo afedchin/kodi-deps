@@ -454,8 +454,8 @@ add_dependency_project_package(libssh 0.7.0)
 ExternalProject_Add(curl
 	DEPENDS openssl zlib
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	URL https://curl.haxx.se/download/curl-7.52.1.tar.gz
-	URL_HASH SHA256=a8984e8b20880b621f61a62d95ff3c0763a3152093a9f9ce4287cfd614add6ae
+	URL https://curl.haxx.se/download/curl-7.56.1.tar.gz
+	URL_HASH SHA256=961a25531d72a843dfcce87b290e7a882f2d376f3b88de11df009710019c5b16
 	PATCH_COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
@@ -723,6 +723,7 @@ ExternalProject_Add(python
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-uwp-changes.patch
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0002-fix-arm-build.patch
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0003-fix-py-libs-for-uwp.patch
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
@@ -735,7 +736,7 @@ ExternalProject_Add(python
 		-DINSTALL_MANUAL:BOOL=OFF
 		-DINSTALL_TEST:BOOL=OFF
 )
-add_dependency_project_package(python 2.7.13)
+add_dependency_project_package(python 2.7.13-v1)
 
 ExternalProject_Add(libjpeg-turbo
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
@@ -767,7 +768,7 @@ ExternalProject_Add(pillow
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
 		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}%3B%3B${PACKAGES_DIRECTORY}/freetype%3B%3B${PACKAGES_DIRECTORY}/libjpeg-turbo%3B%3B${PACKAGES_DIRECTORY}/python%3B%3B${PACKAGES_DIRECTORY}/zlib
 )
-add_dependency_project_package(pillow 4.2.1)
+add_dependency_project_package(pillow 4.2.1-v1)
 
 ExternalProject_Add(pycryptodome
 	DEPENDS python
@@ -784,7 +785,7 @@ ExternalProject_Add(pycryptodome
 		-DBUILD_SHARED_LIBS:BOOL=ON
 		-DSEPARATE_NAMESPACE:BOOL=ON
 )
-add_dependency_project_package(pycryptodome 3.4.7)
+add_dependency_project_package(pycryptodome 3.4.7-v1)
 
 ExternalProject_Add(shairplay
 	DOWNLOAD_NAME shairplay-ce80e00.tar.gz
