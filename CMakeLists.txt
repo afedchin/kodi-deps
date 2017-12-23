@@ -815,7 +815,7 @@ ExternalProject_Add(libbluray
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
 		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}%3B%3B${PACKAGES_DIRECTORY}/freetype%3B%3B${PACKAGES_DIRECTORY}/libiconv%3B%3B${PACKAGES_DIRECTORY}/libxml2
 )
-add_dependency_project_package(libbluray 1.0.1)
+add_dependency_project_package(libbluray 1.0.2)
 
 ExternalProject_Add(libdvdcss
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
