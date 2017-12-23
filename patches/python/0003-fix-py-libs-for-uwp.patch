@@ -29,7 +29,7 @@ index e24cfd2..82f2b54 100644
  
      if _os.name == "nt":
 -        GetLastError = windll.kernel32.GetLastError
-+        from _ctype import GetLastError
++        from _ctypes import GetLastError
      else:
          GetLastError = windll.coredll.GetLastError
      from _ctypes import get_last_error, set_last_error
