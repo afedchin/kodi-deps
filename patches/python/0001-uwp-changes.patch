@@ -113,19 +113,19 @@ diff --git a/Modules/_ctypes/callproc.c b/Modules/_ctypes/callproc.c
 index 3a12eb6..0e794d0 100644
 --- a/Modules/_ctypes/callproc.c
 +++ b/Modules/_ctypes/callproc.c
-@@ -225,6 +225,12 @@ set_errno(PyObject *self, PyObject *args)
+@@ -224,6 +224,12 @@ set_errno(PyObject *self, PyObject *args)
+ 
  #ifdef MS_WIN32
  
- static PyObject *
++static PyObject *
 +_kernel32_get_last_error(PyObject *self, PyObject *args)
 +{
 +    return PyInt_FromLong(GetLastError());
 +}
 +
-+static PyObject *
+ static PyObject *
  get_last_error(PyObject *self, PyObject *args)
  {
-     return get_error_internal(self, args, 1);
 @@ -242,7 +248,11 @@ static TCHAR *FormatError(DWORD code)
  {
      TCHAR *lpMsgBuf;
@@ -883,7 +883,7 @@ index 515d802..a48a0de 100644
  #endif
  
  #ifdef _WIN64
-@@ -213,12 +452,20 @@ ffi_call(/*@dependent@*/ ffi_cif *cif,
+@@ -213,11 +452,19 @@ ffi_call(/*@dependent@*/ ffi_cif *cif,
    switch (cif->abi) 
      {
  #if !defined(_WIN64)
@@ -893,17 +893,16 @@ index 515d802..a48a0de 100644
        return ffi_call_x86(ffi_prep_args, &ecif, cif->bytes, 
  			  cif->flags, ecif.rvalue, fn);
        break;
- #else
++#else
 +    // On Arm __stdcall is ignored by the compiler
 +    case FFI_STDCALL:
 +    case FFI_SYSV:
 +      return ffi_call_arm(ffi_prep_args, &ecif, cif->bytes,
 +            cif->flags, ecif.rvalue, fn);
 +#endif
-+#else
+ #else
      case FFI_SYSV:
        /*@-usedef@*/
-       return ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes,
 @@ -273,7 +520,7 @@ ffi_closure_SYSV (ffi_closure *closure, char *argp)
  
    rtype = cif->flags;
@@ -1427,10 +1426,11 @@ index de0b8ec..4e052c5 100644
      return result;
  }
  #endif
-@@ -1054,6 +1087,14 @@ struct win32_stat{
+@@ -1053,6 +1086,14 @@ struct win32_stat{
+ 
  static __int64 secs_between_epochs = 11644473600; /* Seconds between 1.1.1601 and 1.1.1970 */
  
- static void
++static void
 +longlong_to_time_t_nsec(LONGLONG in, time_t *time_out, int* nsec_out)
 +{
 +    *nsec_out = (int)(in % 10000000) * 100; /* FILETIME is in units of 100 nsec. */
@@ -1438,10 +1438,9 @@ index de0b8ec..4e052c5 100644
 +}
 +
 +
-+static void
+ static void
  FILE_TIME_to_time_t_nsec(FILETIME *in_ptr, time_t *time_out, int* nsec_out)
  {
-     /* XXX endianness. Shouldn't matter, as all Windows implementations are little-endian */
 @@ -1217,6 +1258,69 @@ win32_wstat(const wchar_t* path, struct win32_stat *result)
      return code;
  }
@@ -2834,18 +2833,17 @@ index 461f9fc..0de1904 100644
  #ifdef Py_ENABLE_SHARED
  
  /* a string loaded from the DLL at startup.*/
-@@ -512,9 +518,11 @@ calculate_path(void)
+@@ -512,8 +518,10 @@ calculate_path(void)
  
      skiphome = pythonhome==NULL ? 0 : 1;
  #ifdef Py_ENABLE_SHARED
 +#ifndef MS_UWP
      machinepath = getpythonregpath(HKEY_LOCAL_MACHINE, skiphome);
      userpath = getpythonregpath(HKEY_CURRENT_USER, skiphome);
- #endif
 +#endif
+ #endif
      /* We only use the default relative PYTHONPATH if we havent
         anything better to use! */
-     skipdefault = envpath!=NULL || pythonhome!=NULL || \
 diff --git a/PC/import_nt.c b/PC/import_nt.c
 index 196a774..1a0a4dd 100644
 --- a/PC/import_nt.c
@@ -2928,7 +2926,7 @@ index 44c82e4..d1d08e3 100644
      PyObject *m = Py_InitModule("msvcrt", msvcrt_functions);
      if (m == NULL)
 diff --git a/PC/pyconfig.h b/PC/pyconfig.h
-index 5200b29..9bf46e3 100644
+index 5200b29..6d13e45 100644
 --- a/PC/pyconfig.h
 +++ b/PC/pyconfig.h
 @@ -79,6 +79,15 @@ WIN32 is still required for the locale module.
@@ -2996,7 +2994,19 @@ index 5200b29..9bf46e3 100644
  #endif /* _MSC_VER */
  
  /* define some ANSI types that are not defined in earlier Win headers */
-@@ -361,7 +382,11 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
+@@ -347,7 +368,11 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
+ /* maintain "win32" sys.platform for backward compatibility of Python code,
+    the Win64 API should be close enough to the Win32 API to make this
+    preferable */
++#ifdef MS_UWP
++#	define PLATFORM "win10"
++#else
+ #	define PLATFORM "win32"
++#endif // MS_UWP
+ #	define SIZEOF_VOID_P 8
+ #	define SIZEOF_TIME_T 8
+ #	define SIZEOF_OFF_T 4
+@@ -361,7 +386,11 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
     should define this. */
  #	define HAVE_LARGEFILE_SUPPORT
  #elif defined(MS_WIN32)
@@ -3008,7 +3018,7 @@ index 5200b29..9bf46e3 100644
  #	define HAVE_LARGEFILE_SUPPORT
  #	define SIZEOF_VOID_P 4
  #	define SIZEOF_OFF_T 4
-@@ -551,7 +576,7 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
+@@ -551,7 +580,7 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
  /* #define HAVE_ALTZONE */
  
  /* Define if you have the putenv function.  */
@@ -3437,7 +3447,7 @@ index d823e13..f1fb4ce 100644
      PyObject *exc,
      int ierr,
      PyObject *filenameObject)
- {
++{
 +    return PyErr_SetExcFromWindowsErrWithFilenameObjects(exc, ierr,
 +        filenameObject, NULL);
 +}
@@ -3447,7 +3457,7 @@ index d823e13..f1fb4ce 100644
 +    int ierr,
 +    PyObject *filenameObject,
 +    PyObject *filenameObject2)
-+{
+ {
      int len;
 -    char *s;
 -    char *s_buf = NULL; /* Free via LocalFree */
@@ -3994,5 +4004,5 @@ index 8a4208e..14d2c67 100644
      if(APPLE)
          # HACK For python <= 2.7.3, this fix link error related to undefined _environ symbol and
 -- 
-2.10.2.windows.1
+2.14.1.windows.1
 

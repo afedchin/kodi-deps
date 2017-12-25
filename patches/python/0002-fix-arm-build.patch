@@ -74,5 +74,5 @@ index 1722ebf..67b4541 100644
            set(_ctype_arch_impl win64.asm)
        else()
 -- 
-2.10.2.windows.1
+2.14.1.windows.1
 

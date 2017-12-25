@@ -12,7 +12,7 @@ index d2aaae7..30205ac 100644
  
      if not os.path.isfile(executable):
 diff --git a/Lib/ctypes/__init__.py b/Lib/ctypes/__init__.py
-index e24cfd2..82f2b54 100644
+index e24cfd2..b9b4227 100644
 --- a/Lib/ctypes/__init__.py
 +++ b/Lib/ctypes/__init__.py
 @@ -241,7 +241,7 @@ class c_char_p(_SimpleCData):
@@ -660,5 +660,5 @@ index 1d10650..da0f5ac 100644
          else:
              # Assume everything else is unix-y
 -- 
-2.10.2.windows.1
+2.14.1.windows.1
 
