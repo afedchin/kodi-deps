@@ -11,6 +11,36 @@ index 30b1025..04d4c72 100644
  # disallow in-source build
  include(MacroEnsureOutOfSourceBuild)
  macro_ensure_out_of_source_build("${PROJECT_NAME} requires an out of source build. Please create a separate build directory and run 'cmake /path/to/${PROJECT_NAME} [options]' there.")
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index a3e08a6..e30fcf8 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-project(libssh-library C)
++project(libssh-library C CXX)
+ 
+ set(LIBSSH_PUBLIC_INCLUDE_DIRS
+   ${libssh_SOURCE_DIR}/include
+@@ -251,6 +251,19 @@ if (MINGW)
+     set_target_properties(${LIBSSH_SHARED_LIBRARY} PROPERTIES LINK_FLAGS "-Wl,--enable-stdcall-fixup")
+ endif ()
+ 
++if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++  target_sources(${LIBSSH_SHARED_LIBRARY} PRIVATE
++    ${CMAKE_CURRENT_SOURCE_DIR}/uwpapi.cpp
++  )
++  set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/uwpapi.cpp PROPERTIES COMPILE_FLAGS "/TP /ZW")
++  #fix linkage
++  set_target_properties(${LIBSSH_SHARED_LIBRARY} 
++      PROPERTIES 
++        LINK_FLAGS_DEBUG "/defaultlib:vccorlibd.lib /defaultlib:msvcrtd.lib"
++        LINK_FLAGS_RELEASE "/defaultlib:vccorlib.lib /defaultlib:msvcrt.lib"
++        LINK_FLAGS_RELWITHDEBINFO "/defaultlib:vccorlib.lib /defaultlib:msvcrt.lib"
++  )
++endif()
+ 
+ install(
+   TARGETS
 diff --git a/src/connector.c b/src/connector.c
 index 6f05008..04a0fbd 100644
 --- a/src/connector.c
@@ -124,7 +154,7 @@ index c36f263..2bd7f88 100644
  
  #else
 diff --git a/src/misc.c b/src/misc.c
-index 64cda47..065ec1a 100644
+index 64cda47..1d32524 100644
 --- a/src/misc.c
 +++ b/src/misc.c
 @@ -98,6 +98,7 @@
@@ -135,18 +165,20 @@ index 64cda47..065ec1a 100644
    char tmp[MAX_PATH] = {0};
    char *szPath = NULL;
  
-@@ -110,8 +111,9 @@ char *ssh_get_user_home_dir(void) {
+@@ -110,8 +111,10 @@ char *ssh_get_user_home_dir(void) {
      strcpy(szPath, tmp);
      return szPath;
    }
 -
+-  return NULL;
 +#else
-   return NULL;
++  extern char * uwp_get_user_home_dir(void);
++  return uwp_get_user_home_dir();
 +#endif
  }
  
  /* we have read access on file */
-@@ -140,6 +142,7 @@ int gettimeofday(struct timeval *__p, void *__t) {
+@@ -140,6 +143,7 @@ int gettimeofday(struct timeval *__p, void *__t) {
  }
  
  char *ssh_get_local_username(void) {
@@ -154,7 +186,7 @@ index 64cda47..065ec1a 100644
      DWORD size = 0;
      char *user;
  
-@@ -154,8 +157,9 @@ char *ssh_get_local_username(void) {
+@@ -154,8 +158,9 @@ char *ssh_get_local_username(void) {
      if (GetUserName(user, &size)) {
          return user;
      }
@@ -191,3 +223,30 @@ index 551a7f0..74a068c 100644
      uint32_t rounds;
      int cmp;
      int rc;
+diff --git a/src/uwpapi.cpp b/src/uwpapi.cpp
+new file mode 100644
+index 0000000..ca13b8e
+--- /dev/null
++++ b/src/uwpapi.cpp
+@@ -0,0 +1,18 @@
++
++#include <windows.h>
++
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++extern "C" 
++{
++  char *uwp_get_user_home_dir(void)
++  {
++    auto localFolder = Windows::Storage::ApplicationData::Current->LocalFolder;
++    int len = WideCharToMultiByte(CP_UTF8, 0, localFolder->Path->Data(), -1, NULL, 0, NULL, NULL);
++    char *appdir = (char *)malloc(len);
++    if (appdir) {
++      WideCharToMultiByte(CP_UTF8, 0, localFolder->Path->Data(), -1, appdir, len, NULL, NULL);
++    }
++    return appdir;
++  }
++}
++#endif
+-- 
+2.14.1.windows.1
+
