@@ -2457,15 +2457,16 @@ index 20d7c4b..088bf1e 100644
  /* helper to allow us to interrupt sleep() on Windows*/
  static HANDLE hInterruptEvent = NULL;
  static BOOL WINAPI PyCtrlHandler(DWORD dwCtrlType)
-@@ -706,7 +726,7 @@ inittimezone(PyObject *m) {
- 
+@@ -706,7 +726,9 @@ inittimezone(PyObject *m) {
      And I'm lazy and hate C so nyer.
       */
--#if defined(HAVE_TZNAME) && !defined(__GLIBC__) && !defined(__CYGWIN__)
-+#if defined(HAVE_TZNAME) && !defined(__GLIBC__) && !defined(__CYGWIN__)  && !defined(MS_UWP)
+ #if defined(HAVE_TZNAME) && !defined(__GLIBC__) && !defined(__CYGWIN__)
++#if !defined(MS_UWP)
      tzset();
++#endif
  #if defined(PYOS_OS2) || defined(MS_WINDOWS)
      PyModule_AddIntConstant(m, "timezone", _timezone);
+ #else /* !PYOS_OS2 */
 @@ -878,7 +898,9 @@ inittime(void)
      */
      main_thread = PyThread_get_thread_ident();
