@@ -137,6 +137,7 @@ ExternalProject_Add(openssl
 	PATCH_COMMAND 
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/openssl/0001-uwp-build-fix.patch
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/openssl/0002-kodi-ssl-cert-file.patch
 	INSTALL_COMMAND
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
