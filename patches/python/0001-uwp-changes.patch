@@ -3622,8 +3622,8 @@ index 1d74faf..87cdf68 100644
 +    }
 +    /* filetime represents the number of 100ns intervals since
 +    1.1.1601 (UTC).  Convert to seconds since 1.1.1970 (UTC). */
-+    filetime = (__int64)file_information.LastAccessTime.HighPart << 32 |
-+        file_information.LastAccessTime.LowPart;
++    filetime = file_information.LastWriteTime.QuadPart;
++
 +#else
      BY_HANDLE_FILE_INFORMATION file_information;
  
