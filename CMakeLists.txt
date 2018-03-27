@@ -721,14 +721,15 @@ add_dependency_project_package(mysql-connector-c 6.1.9)
 ExternalProject_Add(python
 	DEPENDS bzip2 openssl sqlite zlib
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	URL https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz
-	URL_HASH SHA256=a4f05a0720ce0fd92626f0278b6b433eee9a6173ddf2bced7957dfb599a5ece1
+	URL https://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz
+	URL_HASH SHA256=304c9b202ea6fbd0a4a8e0ad3733715fbd4749f2204a9173a58ec53c32ea73e8
 	PATCH_COMMAND
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/python-cmake-buildsystem-b348a50.diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-uwp-changes.patch
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0002-fix-arm-build.patch
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0003-fix-py-libs-for-uwp.patch
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0004-uwp-expat.patch
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
@@ -741,7 +742,7 @@ ExternalProject_Add(python
 		-DINSTALL_MANUAL:BOOL=OFF
 		-DINSTALL_TEST:BOOL=OFF
 )
-add_dependency_project_package(python 2.7.13-v1)
+add_dependency_project_package(python 2.7.14)
 
 ExternalProject_Add(libjpeg-turbo
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
