@@ -165,18 +165,18 @@ add_dependency_project_package(zlib 1.2.11)
 
 # Required dependencies
 
-ExternalProject_Add(cpluff
-	DEPENDS expat
-	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	URL http://www.c-pluff.org/downloads/cpluff-0.1.3.tar.gz
-	URL_HASH SHA256=bae2ff7c3df4cf3cd9b0f32936ebe88c61d7da7c60a33b7cef4b98f8fca9c73c
-	PATCH_COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
-	CMAKE_ARGS
-		${ADDITIONAL_ARGS}
-		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
-		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}%3B%3B${PACKAGES_DIRECTORY}/expat
-)
-add_dependency_project_package(cpluff 0.1.3)
+#ExternalProject_Add(cpluff
+#	DEPENDS expat
+#	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
+#	URL http://www.c-pluff.org/downloads/cpluff-0.1.3.tar.gz
+#	URL_HASH SHA256=bae2ff7c3df4cf3cd9b0f32936ebe88c61d7da7c60a33b7cef4b98f8fca9c73c
+#	PATCH_COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
+#	CMAKE_ARGS
+#		${ADDITIONAL_ARGS}
+#		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
+#		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}%3B%3B${PACKAGES_DIRECTORY}/expat
+#)
+#add_dependency_project_package(cpluff 0.1.3)
 
 ExternalProject_Add(crossguid
 	DOWNLOAD_NAME crossguid-fef89a4.tar.gz
@@ -370,7 +370,7 @@ add_dependency_project_package(tinyxml 2.6.2)
 
 add_custom_target(DependenciesRequired
 	DEPENDS
-		cpluff
+#		cpluff
 		crossguid
 		easyhook
 		fmt
@@ -859,7 +859,7 @@ ExternalProject_Add(libdvdnav
 if(FOLDER_PER_TARGET)
 	add_custom_target(DependenciesPackages
 		DEPENDS
-			cpluff-zip
+#			cpluff-zip
 			crossguid-zip
 			curl-zip
 			dnssd-zip
