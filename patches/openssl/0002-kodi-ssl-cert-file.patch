@@ -1,8 +1,8 @@
 diff --git a/ms/winrt.cpp b/ms/winrt.cpp
-index efe31d8..e34bae4 100644
+index 4dcc8aa..dd754ba 100644
 --- a/ms/winrt.cpp
 +++ b/ms/winrt.cpp
-@@ -74,6 +74,7 @@ int RAND_poll(void)
+@@ -87,6 +87,7 @@ int RAND_poll(void)
  	}
  
  #if defined(OPENSSL_WINAPP)
@@ -10,7 +10,7 @@ index efe31d8..e34bae4 100644
  extern "C"
  {
  #include<stdio.h>
-@@ -197,11 +198,39 @@ extern "C"
+@@ -210,11 +211,24 @@ extern "C"
  					  const char *varname
  					  )
  		{
@@ -22,30 +22,15 @@ index efe31d8..e34bae4 100644
  			}
 +		if (!strcmp(varname, "SSL_CERT_FILE"))
 +		{
-+		  if(cert_path.empty())
-+		  {
-+            auto values = Windows::Storage::ApplicationData::Current->LocalSettings->Values;
-+            if (values->HasKey(L"SSL_CERT_FILE"))
-+            {
-+              auto value = safe_cast<Platform::String^>(values->Lookup(L"SSL_CERT_FILE"));
-+              int len = WideCharToMultiByte(CP_UTF8, 0, value->Data(), -1, NULL, 0, NULL, NULL);
-+              if (len == 0)
-+                return "";
++			uint32_t varSize = GetEnvironmentVariableA(varname, nullptr, 0);
++			if (varSize <= 0)
++				return nullptr; // Not found
 +
-+              char *path = (char *)malloc(len);
-+              if (!path)
-+                return "";
++			std::string value(varSize, 0);
++			GetEnvironmentVariableA(varname, const_cast<char*>(value.c_str()), varSize);
 +
-+              if (WideCharToMultiByte(CP_UTF8, 0, value->Data(), -1, path, len, NULL, NULL) != len)
-+              {
-+                free(path);
-+                return "";
-+              }
-+              cert_path = std::string(path);
-+              free(path);
-+            }
-+		  }
-+		  return (char*)cert_path.c_str();
++			cert_path = value;
++			return const_cast<char*>(cert_path.c_str());
 +		}
  		return 0;
  		}

@@ -46,7 +46,7 @@ index 1af9bef..03484bd 100644
 -add_custom_target(openssl ALL COMMAND nmake -f ms/ntdll.mak WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 +if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 +	add_custom_command(OUTPUT ${OPENSSL_GENERATE}.out
-+		COMMAND ms/setVSvars.bat universal10.0${OPENSSL_UWP_PLATFROM}
++		COMMAND ms/setVSvars.bat universal10.0${OPENSSL_UWP_PLATFROM} ${CMAKE_SYSTEM_VERSION}
 +		COMMAND nmake -f ms/ntdll.mak 
 +		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 +		COMMENT "Compiling OpenSSL UWP"
@@ -63,54 +63,141 @@ index 1af9bef..03484bd 100644
  
  install(CODE "execute_process(COMMAND nmake -f ms/ntdll.mak install WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")
 diff --git a/ms/setVSvars.bat b/ms/setVSvars.bat
-index e6ebc0a..dda5007 100644
+index 633e605..744d1a9 100644
 --- a/ms/setVSvars.bat
 +++ b/ms/setVSvars.bat
-@@ -3,7 +3,7 @@ call:set_%1
+@@ -1,55 +1,35 @@
+ @if NOT "%_DEBUG%" GEQ "1" @echo off
+ pushd %~dp0\..
++set sdkVer=%2
++if "%sdkVer%"=="" set sdkVer=10.0.16299.0
+ call:set_%1
+ popd
  exit /b
  :set_universal10.0Win32
- 	call:setVar _VS14VC VisualStudio14VC
+-	call:setVar _VS15VC VisualStudio15VC
+-	if not "%_VS15VC%"=="" (
+-		call "%_VS15VC%\vcvarsall" x86 store
+-		call:setEnv
+-		goto :eof
+-	)
+-	call:setVar _VS14VC VisualStudio14VC
 -	call "%_VS14VC%vcvarsall" x86 store
-+	call "%_VS14VC%vcvarsall" x86 store 10.0.14393.0
- 	set _VCPlatform=x86
- 	set _VCLibPlat=
- 	call:setEnv
-@@ -11,7 +11,7 @@ exit /b
+-	call:setEnv
++    call:setUniversalVCVars x86
+ 	goto :eof
  
  :set_universal10.0x64
- 	call:setVar _VS14VC VisualStudio14VC
+-	call:setVar _VS15VC VisualStudio15VC
+-	if not "%_VS15VC%"=="" (
+-		call "%_VS15VC%\vcvarsall" x64 store
+-		call:setEnv
+-		goto :eof
+-	)
+-	call:setVar _VS14VC VisualStudio14VC
 -	call "%_VS14VC%vcvarsall" x64 store
-+	call "%_VS14VC%vcvarsall" x64 store 10.0.14393.0
- 	set _VCPlatform=x64
- 	set _VCLibPlat=amd64
- 	call:setEnv
-@@ -19,7 +19,7 @@ exit /b
+-	call:setEnv
++    call:setUniversalVCVars x64
+ 	goto :eof
  
  :set_universal10.0arm
- 	call:setVar _VS14VC VisualStudio14VC
+-	call:setVar _VS15VC VisualStudio15VC
+-	if not "%_VS15VC%"=="" (
+-		call "%_VS15VC%\vcvarsall" x86_arm store
+-		rem
+-		call:setEnv
+-		goto :eof
+-	)
+-	call:setVar _VS14VC VisualStudio14VC
+-    rem
 -	call "%_VS14VC%vcvarsall" x86_arm store
-+	call "%_VS14VC%vcvarsall" x86_arm store 10.0.14393.0
- 	set _VCPlatform=ARM
- 	set _VCLibPlat=ARM
- 	call:setEnv
-@@ -27,7 +27,7 @@ exit /b
+-	call:setEnv
++    call:setUniversalVCVars x86_arm
+ 	goto :eof
  
  :set_universal10.0arm64
++    call:setUniversalVCVars x86_arm64
++	goto :eof
++
++:setUniversalVCVars
+     call:setVar _VS15VC VisualStudio15VC
+     if not "%_VS15VC%"=="" (
+-		call "%_VS15VC%\vcvarsall" x86_arm64 store
++		call "%_VS15VC%\vcvarsall" %1 store %sdkVer%
+ 		call:setEnv
+ 		goto :eof
+ 	)
  	call:setVar _VS14VC VisualStudio14VC
 -	call "%_VS14VC%vcvarsall" x86_arm64 store
-+	call "%_VS14VC%vcvarsall" x86_arm64 store 10.0.14393.0
- 	set _VCPlatform=ARM64
- 	set _VCLibPlat=ARM64
++	call "%_VS14VC%vcvarsall" %1 store %sdkVer%
  	call:setEnv
-@@ -179,7 +179,7 @@ exit /b
- 	call:setVar _VS14VC VisualStudio14VC
+ 	goto :eof
+ 
+@@ -211,14 +191,10 @@ exit /b
+ 	call:setVar _VS15VC VisualStudio15VC
  	call:setVar _WKITS10 WindowsKits10.0
- 	set PATH=%_VS14VCBin%;%PATH%
--	set "LIBPATH=%_WKITS10%UnionMetadata\Facade;%_VS14VC%vcpackages;%_WKITS10%references\windows.foundation.foundationcontract\1.0.0.0\;%_WKITS10%references\windows.foundation.universalapicontract\1.0.0.0\"
-+	set "LIBPATH=%_WKITS10%UnionMetadata\Facade;%_VS14VC%vcpackages;%_WKITS10%references\windows.foundation.foundationcontract\2.0.0.0\;%_WKITS10%references\windows.foundation.universalapicontract\2.0.0.0\"
+ 	call:setVar _WKITS10VER WindowsKits10Version
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\3.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\2.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\1.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\5.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\4.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\3.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\2.0.0.0\
+-	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\1.0.0.0\
++	for /D %%f in ("%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\*") do set LIBPATH=%LIBPATH%;%%f\
++	for /D %%f in ("%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\*") do set LIBPATH=%LIBPATH%;%%f\
++	for /D %%f in ("%_WKITS10%\references\windows.foundation.foundationcontract\*") do set LIBPATH=%LIBPATH%;%%f\
++	for /D %%f in ("%_WKITS10%\references\windows.foundation.universalapicontract\*") do set LIBPATH=%LIBPATH%;%%f\	
  	goto :eof
  
  :end
+diff --git a/ms/winrtdef.h b/ms/winrtdef.h
+index 10235dd..8f07730 100644
+--- a/ms/winrtdef.h
++++ b/ms/winrtdef.h
+@@ -20,6 +20,8 @@
+ # ifdef setenv
+ #  undef setenv
+ # endif
++#define getenv winrt_getenv
++#define setenv winrt_setenv
+ 
+ /*
+ # ifdef FindFirstFile
+@@ -53,7 +55,7 @@ int winrt_GetTickCount(void);
+ void* LoadLibraryA(
+ 	const char* lpFileName
+   );
+-char* getenv(const char* varname);
++char* winrt_getenv(const char* varname);
+ int _kbhit();
+ 
+ int MoveFile(
+@@ -57,8 +57,8 @@ char* winrt_getenv(const char* varname);
+ int _kbhit();
+ 
+ int MoveFile(
+-	const wchar_t* lpExistingFileName,
+-	const wchar_t* lpNewFileName
++	_In_  LPCTSTR lpExistingFileName,
++	_In_  LPCTSTR lpNewFileName
+ 	);
+ 
+ HMODULE
+diff --git a/engines/e_aep.c b/engines/e_aep.c
+index 66849f3..fbebdbd 100644
+--- a/engines/e_aep.c
++++ b/engines/e_aep.c
+@@ -69,7 +69,7 @@ typedef int pid_t;
+ # define getpid GetThreadID
+ extern int GetThreadID(void);
+ #elif defined(_WIN32) && !defined(__WATCOMC__)
+-# define getpid _getpid
++# define getpid GetCurrentProcessId
+ #endif
+ 
+ #include <openssl/crypto.h>
 -- 
 2.10.2.windows.1
 
