@@ -12,7 +12,7 @@ index d2aaae7..30205ac 100644
  
      if not os.path.isfile(executable):
 diff --git a/Lib/ctypes/__init__.py b/Lib/ctypes/__init__.py
-index e24cfd2..b9b4227 100644
+index 88c85ff..42b5235 100644
 --- a/Lib/ctypes/__init__.py
 +++ b/Lib/ctypes/__init__.py
 @@ -241,7 +241,7 @@ class c_char_p(_SimpleCData):
@@ -24,7 +24,7 @@ index e24cfd2..b9b4227 100644
                  return "%s(%r)" % (self.__class__.__name__, self.value)
              return "%s(%s)" % (self.__class__.__name__, cast(self, c_void_p).value)
      else:
-@@ -455,7 +455,7 @@ if _os.name in ("nt", "ce"):
+@@ -459,7 +459,7 @@ if _os.name in ("nt", "ce"):
      oledll = LibraryLoader(OleDLL)
  
      if _os.name == "nt":
@@ -182,7 +182,7 @@ index a5d679e..1f0af6b 100644
          newheight = newheight - 72
  
 diff --git a/Lib/locale.py b/Lib/locale.py
-index 5aab163..051380a 100644
+index 62aad5a..11a5b08 100644
 --- a/Lib/locale.py
 +++ b/Lib/locale.py
 @@ -524,7 +524,7 @@ def getdefaultlocale(envvars=('LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE')):
@@ -257,7 +257,7 @@ index 645a26f..88aef6c 100644
      class PipeListener(object):
          '''
 diff --git a/Lib/multiprocessing/forking.py b/Lib/multiprocessing/forking.py
-index d393817..a94e869 100644
+index 9412eb1..0f5abe3 100644
 --- a/Lib/multiprocessing/forking.py
 +++ b/Lib/multiprocessing/forking.py
 @@ -99,7 +99,7 @@ else:
@@ -292,7 +292,7 @@ index a1f3711..7230a56 100644
      from _multiprocessing import win32
  
 diff --git a/Lib/multiprocessing/queues.py b/Lib/multiprocessing/queues.py
-index a88e298..a69c1df 100644
+index 079cd35..176ff89 100644
 --- a/Lib/multiprocessing/queues.py
 +++ b/Lib/multiprocessing/queues.py
 @@ -62,7 +62,7 @@ class Queue(object):
@@ -322,7 +322,7 @@ index a88e298..a69c1df 100644
              wacquire = writelock.acquire
              wrelease = writelock.release
          else:
-@@ -352,7 +352,7 @@ class SimpleQueue(object):
+@@ -350,7 +350,7 @@ class SimpleQueue(object):
      def __init__(self):
          self._reader, self._writer = Pipe(duplex=False)
          self._rlock = Lock()
@@ -595,7 +595,7 @@ index f28c863..d7583fa 100644
                  self._load_windows_store_certs(storename, purpose)
          self.set_default_verify_paths()
 diff --git a/Lib/subprocess.py b/Lib/subprocess.py
-index 2022e97..3d671db 100644
+index 4b41f5e..50779af 100644
 --- a/Lib/subprocess.py
 +++ b/Lib/subprocess.py
 @@ -31,7 +31,7 @@ STDOUT:  Special value that indicates that stderr should go to stdout
@@ -647,7 +647,7 @@ index 7432032..bb22712 100644
      else:
          getters = [_unixdll_getnode, _ifconfig_getnode, _arp_getnode,
 diff --git a/Lib/zipfile.py b/Lib/zipfile.py
-index 1d10650..da0f5ac 100644
+index 3ab66ce..35029cc 100644
 --- a/Lib/zipfile.py
 +++ b/Lib/zipfile.py
 @@ -308,7 +308,7 @@ class ZipInfo (object):
@@ -660,5 +660,5 @@ index 1d10650..da0f5ac 100644
          else:
              # Assume everything else is unix-y
 -- 
-2.14.1.windows.1
+2.16.1.windows.4
 
