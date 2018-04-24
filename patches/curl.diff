@@ -31,7 +31,7 @@ index 3bfb5fe..5350e93 100644
    if(ZLIB_FOUND)
      set(HAVE_ZLIB_H ON)
      set(HAVE_ZLIB ON)
-@@ -881,7 +885,9 @@ check_symbol_exists(setsockopt     "${CURL_INCLUDES}" HAVE_SETSOCKOPT)
+@@ -882,7 +886,9 @@ check_symbol_exists(setsockopt     "${CURL_INCLUDES}" HAVE_SETSOCKOPT)
  
  # symbol exists in win32, but function does not.
  if(WIN32)
@@ -55,14 +55,17 @@ index d6c9961..87183fe 100644
  
      set_target_properties (${LIB_NAME} PROPERTIES
         DEBUG_POSTFIX "-d"
-@@ -112,3 +112,7 @@ install(TARGETS ${LIB_NAME}
-   ARCHIVE DESTINATION lib
-   LIBRARY DESTINATION lib
-   RUNTIME DESTINATION bin)
-+
+@@ -118,6 +118,10 @@ install(TARGETS ${LIB_NAME}
+   RUNTIME DESTINATION bin
+ )
+
 +if(MSVC)
 +  install(FILES "${CMAKE_BINARY_DIR}/lib/RelWithDebInfo/libcurl.pdb" DESTINATION lib CONFIGURATIONS RelWithDebInfo)
 +endif()
++
+ export(TARGETS ${LIB_NAME}
+        APPEND FILE ${PROJECT_BINARY_DIR}/libcurl-target.cmake
+        NAMESPACE CURL::
 -- 
 2.10.2.windows.1
 

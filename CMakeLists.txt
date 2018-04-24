@@ -456,9 +456,11 @@ add_dependency_project_package(libssh 0.7.0)
 ExternalProject_Add(curl
 	DEPENDS openssl zlib
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	URL https://curl.haxx.se/download/curl-7.56.1.tar.gz
-	URL_HASH SHA256=961a25531d72a843dfcce87b290e7a882f2d376f3b88de11df009710019c5b16
-	PATCH_COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
+	URL https://curl.haxx.se/download/curl-7.59.0.tar.gz
+	URL_HASH SHA256=099d9c32dc7b8958ca592597c9fabccdf4c08cfb7c114ff1afbbc4c6f13c9e9e
+	PATCH_COMMAND 
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-uwp.patch
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
@@ -468,9 +470,10 @@ ExternalProject_Add(curl
 		-DBUILD_TESTING:BOOL=OFF
 		-DCMAKE_USE_LIBSSH2:BOOL=OFF
 		-DCMAKE_USE_OPENSSL:BOOL=ON
+		-DCURL_CA_FALLBACK:BOOL=ON
 		-DENABLE_MANUAL:BOOL=OFF
 )
-add_dependency_project_package(curl 7.52.1)
+add_dependency_project_package(curl 7.59.0)
 
 add_custom_target(DependenciesDllRequired
 	DEPENDS
