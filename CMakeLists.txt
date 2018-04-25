@@ -705,12 +705,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL WindowsStore)
 	set(MYSQL_ADDITIONAL_UWP_ARGS "-DSTACK_DIRECTION:BOOL=ON")
 endif()
 ExternalProject_Add(mysql-connector-c
+	DEPENDS openssl
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
 	URL https://dev.mysql.com/get/Downloads/Connector-C/mysql-connector-c-6.1.9-src.tar.gz
 	URL_HASH SHA256=4e808704443365ad5b649673d03eca8fbebc0a4da9f1f96616c6bd1b1901ab2b
 	PATCH_COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
-		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-UWP-cannot-generate-those-files.patch
-		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0002-UWP-fixes.patch
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-uwp-cannot-generate-those-files.patch
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0002-uwp-fix-build.patch
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}

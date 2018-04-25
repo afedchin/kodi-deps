@@ -1,0 +1,832 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1898265..abf193c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -177,6 +177,12 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+   ENDIF()
+ ENDIF()
+ 
++IF(CMAKE_SYSTEM_NAME MATCHES "WindowsStore")
++  #SET(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /sdl-")
++  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /sdl-")
++  ADD_DEFINITIONS(-DWIN32_LEAN_AND_MEAN -D_WIN_STORE -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
++ENDIF()
++
+ INCLUDE(CheckTypeSize)
+ CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+ MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
+@@ -520,7 +526,9 @@ IF(0) #WITH_UNIT_TESTS)
+ ENDIF()
+ 
+ SET(WITH_INNOBASE_STORAGE_ENGINE 0)
+-ADD_SUBDIRECTORY(extra)
++if (NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++  ADD_SUBDIRECTORY(extra)
++ENDIF()
+ ADD_SUBDIRECTORY(scripts)
+ # ADD_SUBDIRECTORY(testclients)
+ ADD_SUBDIRECTORY(support-files)
+diff --git a/configure.cmake b/configure.cmake
+index fdcc4be..f821f02 100644
+--- a/configure.cmake
++++ b/configure.cmake
+@@ -95,6 +95,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+   ENDIF()
+ ENDIF()
+ 
++if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++  SET(HAVE_LLVM_LIBCPP 0)
++ELSE()
+ # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
+ # Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
+ CHECK_CXX_SOURCE_RUNS("
+@@ -107,6 +110,7 @@ int main()
+   return 1;
+ #endif
+ }" HAVE_LLVM_LIBCPP)
++ENDIF()
+ 
+ MACRO(DIRNAME IN OUT)
+   GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
+diff --git a/include/my_global.h b/include/my_global.h
+index 09eae61..03ca288 100644
+--- a/include/my_global.h
++++ b/include/my_global.h
+@@ -778,4 +778,8 @@ typedef mode_t MY_MODE;
+ #if defined(_WIN32) || defined(_WIN64)
+   #define strcasecmp _stricmp
+ #endif
++
++#if defined(_WIN_STORE)
++#define getenv(x) NULL
++#endif
+ #endif  // MY_GLOBAL_INCLUDED
+diff --git a/libmysql/CMakeLists.txt b/libmysql/CMakeLists.txt
+index fb7bc54..8f36978 100644
+--- a/libmysql/CMakeLists.txt
++++ b/libmysql/CMakeLists.txt
+@@ -224,7 +224,7 @@ SET(LIBS clientlib dbug strings vio mysys mysys_ssl ${ZLIB_LIBRARY} ${SSL_LIBRAR
+ # On Windows platform client library includes the client-side 
+ # Windows Native Authentication plugin.
+ #
+-IF(WIN32)
++IF(WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+   ADD_SUBDIRECTORY(authentication_win)
+   LIST(APPEND LIBS auth_win_client)
+diff --git a/libmysql/get_password.c b/libmysql/get_password.c
+index d904fbe..ab5717a 100644
+--- a/libmysql/get_password.c
++++ b/libmysql/get_password.c
+@@ -60,6 +60,9 @@
+ /* were just going to fake it here and get input from the keyboard */
+ char *get_tty_password(const char *opt_message)
+ {
++#ifdef _WIN_STORE
++  return 0;
++#else
+   char to[80];
+   char *pos=to,*end=to+sizeof(to)-1;
+   int i=0;
+@@ -91,6 +94,7 @@ char *get_tty_password(const char *opt_message)
+   _cputs("\n");
+   DBUG_RETURN(my_strdup(PSI_NOT_INSTRUMENTED,
+                         to,MYF(MY_FAE)));
++#endif // _WIN_STORE
+ }
+ 
+ #else
+diff --git a/mysys/CMakeLists.txt b/mysys/CMakeLists.txt
+index 9615263..c4d800b 100644
+--- a/mysys/CMakeLists.txt
++++ b/mysys/CMakeLists.txt
+@@ -29,21 +29,32 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
+ 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
+ 				my_read.c my_redel.c my_rename.c my_seek.c
+ 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c
+-				my_write.c ptr_cmp.c queues.c sql_chars.c stacktrace.c
++				my_write.c ptr_cmp.c queues.c sql_chars.c 
+ 				string.c thr_cond.c thr_lock.c thr_mutex.c
+ 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
+ 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
+-				my_rdtsc.c psi_noop.c my_syslog.c
++				my_rdtsc.c psi_noop.c
+ 				my_chmod.c my_thread.c)
+ 
++IF (NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++  LIST(APPEND MYSYS_SOURCES
++    stacktrace.c
++    my_syslog.c
++  )
++ENDIF()
++
+ IF (WIN32)
+   LIST(APPEND MYSYS_SOURCES
+-    my_conio.c
+-    my_windac.c
+     my_winerr.c
++    my_windac.c
+     my_winfile.c
+-    win_timers.c
+   )
++  IF (NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++    LIST(APPEND MYSYS_SOURCES
++      my_conio.c
++      win_timers.c
++    )
++  ENDIF()
+ ENDIF()
+ 
+ IF(HAVE_POSIX_TIMERS)
+diff --git a/mysys/charset.c b/mysys/charset.c
+index 0ac55fc..1c78218 100644
+--- a/mysys/charset.c
++++ b/mysys/charset.c
+@@ -869,7 +869,7 @@ CHARSET_INFO *fs_character_set()
+   if (!fs_cset_cache)
+   {
+     char buf[10]= "cp";
+-    GetLocaleInfo(LOCALE_SYSTEM_DEFAULT, LOCALE_IDEFAULTANSICODEPAGE,
++    GetLocaleInfoA(LOCALE_SYSTEM_DEFAULT, LOCALE_IDEFAULTANSICODEPAGE,
+                   buf+2, sizeof(buf)-3);
+     /*
+       We cannot call get_charset_by_name here
+diff --git a/mysys/mf_tempfile.c b/mysys/mf_tempfile.c
+index beeabba..db17d9d 100644
+--- a/mysys/mf_tempfile.c
++++ b/mysys/mf_tempfile.c
+@@ -56,7 +56,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
+ {
+   File file= -1;
+ #ifdef _WIN32
+-  TCHAR path_buf[MAX_PATH-14];
++  CHAR path_buf[MAX_PATH-14];
+ #endif
+ 
+   DBUG_ENTER("create_temp_file");
+@@ -71,7 +71,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
+    */
+    if (!dir)
+    {
+-     if(GetTempPath(sizeof(path_buf), path_buf) > 0) 
++     if(GetTempPathA(sizeof(path_buf), path_buf) > 0) 
+        dir = path_buf;
+    }
+    /*
+@@ -79,7 +79,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
+      the file and release it's handle
+       - uses up to the first three letters from prefix
+    */
+-  if (GetTempFileName(dir, prefix, 0, to) == 0)
++  if (GetTempFileNameA(dir, prefix, 0, to) == 0)
+     DBUG_RETURN(-1);
+ 
+   DBUG_PRINT("info", ("name: %s", to));
+diff --git a/mysys/my_access.c b/mysys/my_access.c
+index 0d66643..33ac933 100644
+--- a/mysys/my_access.c
++++ b/mysys/my_access.c
+@@ -43,7 +43,7 @@ int my_access(const char *path, int amode)
+   WIN32_FILE_ATTRIBUTE_DATA fileinfo;
+   BOOL result;
+ 	
+-  result= GetFileAttributesEx(path, GetFileExInfoStandard, &fileinfo);
++  result= GetFileAttributesExA(path, GetFileExInfoStandard, &fileinfo);
+   if (! result ||
+       (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK))
+   {
+diff --git a/mysys/my_delete.c b/mysys/my_delete.c
+index 7f82e60..5cb4c47 100644
+--- a/mysys/my_delete.c
++++ b/mysys/my_delete.c
+@@ -84,7 +84,7 @@ int nt_share_delete(const char *name, myf MyFlags)
+   {
+     errno= 0;
+     sprintf(buf, "%s.%08X.deleted", name, cnt);
+-    if (MoveFile(name, buf))
++    if (MoveFileExA(name, buf, 0))
+       break;
+ 
+     if ((errno= GetLastError()) == ERROR_ALREADY_EXISTS)
+@@ -105,7 +105,7 @@ int nt_share_delete(const char *name, myf MyFlags)
+   }
+   else if (errno == 0)
+   {
+-    if (DeleteFile(buf))
++    if (DeleteFileA(buf))
+       DBUG_RETURN(0);
+     /*
+       The below is more complicated than necessary. For some reason, the
+diff --git a/mysys/my_fopen.c b/mysys/my_fopen.c
+index 681c3b5..c248546 100644
+--- a/mysys/my_fopen.c
++++ b/mysys/my_fopen.c
+@@ -99,11 +99,14 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
+ 
+ 
+ #if defined(_WIN32)
++extern wchar_t* utf8_to_wchar(const char *string, size_t *len);
+ 
+ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
+ {
+   int handle_fd, fd= _fileno(stream);
+   HANDLE osfh;
++  wchar_t* pathW = NULL;
++  pathW = utf8_to_wchar(path, NULL);
+ 
+   DBUG_ASSERT(path && stream);
+ 
+@@ -115,16 +118,23 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
+ 
+     fd= _fileno(stream);
+   }
+-
++#ifdef _WIN_STORE
++  if ((osfh= CreateFile2(pathW, GENERIC_READ | GENERIC_WRITE,
++                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
++                         OPEN_ALWAYS, NULL)) == INVALID_HANDLE_VALUE)
++#else
+   if ((osfh= CreateFile(path, GENERIC_READ | GENERIC_WRITE,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE |
+                         FILE_SHARE_DELETE, NULL,
+                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                         NULL)) == INVALID_HANDLE_VALUE)
++#endif // _WIN_STORE
+   {
+     _close(fd);
++    my_free(pathW);
+     return NULL;
+   }
++  my_free(pathW);
+ 
+   if ((handle_fd= _open_osfhandle((intptr_t)osfh,
+                                   _O_APPEND | _O_TEXT)) == -1)
+diff --git a/mysys/my_gethwaddr.c b/mysys/my_gethwaddr.c
+index 5b48e5b..a51d984 100644
+--- a/mysys/my_gethwaddr.c
++++ b/mysys/my_gethwaddr.c
+@@ -174,10 +174,14 @@ my_bool my_gethwaddr(uchar *to)
+ 
+   if(fnGetAdaptersAddresses == (pfnGetAdaptersAddresses)-1)
+   {
++#ifdef _WIN_STORE
++    fnGetAdaptersAddresses = GetAdaptersAddresses;
++#else
+     /* Get the function from the DLL */
+     fnGetAdaptersAddresses= (pfnGetAdaptersAddresses)
+                             GetProcAddress(LoadLibrary("iphlpapi.dll"),
+                                           "GetAdaptersAddresses");
++#endif // _WIN_STORE
+   }
+   if (!fnGetAdaptersAddresses)
+     return 1;                                   /* failed to get function */
+diff --git a/mysys/my_getwd.c b/mysys/my_getwd.c
+index 6d650a8..2172829 100644
+--- a/mysys/my_getwd.c
++++ b/mysys/my_getwd.c
+@@ -58,7 +58,7 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
+   {
+     if (size < 2)
+       DBUG_RETURN(-1);
+-    if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
++    if (!_getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
+     {
+       char errbuf[MYSYS_STRERROR_SIZE];
+       set_my_errno(errno);
+@@ -90,7 +90,7 @@ int my_setwd(const char *dir, myf MyFlags)
+   start=(char *) dir;
+   if (! dir[0] || (dir[0] == FN_LIBCHAR && dir[1] == 0))
+     dir=FN_ROOTDIR;
+-  if ((res=chdir((char*) dir)) != 0)
++  if ((res=_chdir((char*) dir)) != 0)
+   {
+     set_my_errno(errno);
+     if (MyFlags & MY_WME)
+diff --git a/mysys/my_init.c b/mysys/my_init.c
+index 54d44e6..8637ae6 100644
+--- a/mysys/my_init.c
++++ b/mysys/my_init.c
+@@ -27,6 +27,7 @@
+ 
+ #ifdef _WIN32
+ #include <locale.h>
++#include <time.h>
+ #include <crtdbg.h>
+ /* WSAStartup needs winsock library*/
+ #pragma comment(lib, "ws2_32")
+@@ -299,6 +300,7 @@ static void win_init_time()
+ */
+ static void win_init_registry()
+ {
++#ifndef _WIN_STORE
+   HKEY key_handle;
+ 
+   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR)"SOFTWARE\\MySQL",
+@@ -345,6 +347,7 @@ static void win_init_registry()
+ 
+     RegCloseKey(key_handle);
+   }
++#endif
+ }
+ 
+ 
+@@ -361,6 +364,7 @@ static void win_init_registry()
+ 
+ static my_bool win32_have_tcpip()
+ {
++#ifndef _WIN_STORE
+   HKEY hTcpipRegKey;
+   if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, TCPIPKEY, 0, KEY_READ,
+ 		      &hTcpipRegKey) != ERROR_SUCCESS)
+@@ -375,6 +379,7 @@ static my_bool win32_have_tcpip()
+     }
+   }
+   RegCloseKey ( hTcpipRegKey);
++#endif
+   return (TRUE);
+ }
+ 
+@@ -427,7 +432,9 @@ static void my_win_init()
+   _RTC_SetErrorFunc(handle_rtc_failure);
+ #endif
+ 
++#ifndef _WIN_STORE
+   _tzset();
++#endif
+ 
+   win_init_time();
+   win_init_registry();
+diff --git a/mysys/my_rename.c b/mysys/my_rename.c
+index c8ad130..15c6109 100644
+--- a/mysys/my_rename.c
++++ b/mysys/my_rename.c
+@@ -30,7 +30,7 @@ int my_rename(const char *from, const char *to, myf MyFlags)
+   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
+ 
+ #if defined(_WIN32)
+-  if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
++  if(!MoveFileExA(from, to, MOVEFILE_COPY_ALLOWED|
+                            MOVEFILE_REPLACE_EXISTING))
+   {
+     my_osmaperr(GetLastError());
+diff --git a/mysys/my_symlink.c b/mysys/my_symlink.c
+index 48bdcf6..d6ae08f 100644
+--- a/mysys/my_symlink.c
++++ b/mysys/my_symlink.c
+@@ -114,7 +114,7 @@ int my_is_symlink(const char *filename MY_ATTRIBUTE((unused)))
+   struct stat stat_buff;
+   return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+ #elif defined (_WIN32)
+-  DWORD dwAttr = GetFileAttributes(filename);
++  DWORD dwAttr = GetFileAttributesA(filename);
+   return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
+     (dwAttr & FILE_ATTRIBUTE_REPARSE_POINT);
+ #else  /* No symlinks */
+@@ -158,7 +158,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
+   }
+   DBUG_RETURN(result);
+ #elif defined(_WIN32)
+-  int ret= GetFullPathName(filename,FN_REFLEN, to, NULL);
++  int ret= GetFullPathNameA(filename,FN_REFLEN, to, NULL);
+   if (ret == 0 || ret > FN_REFLEN)
+   {
+     set_my_errno((ret > FN_REFLEN) ? ENAMETOOLONG : GetLastError());
+diff --git a/mysys/my_thread.c b/mysys/my_thread.c
+index 5db580e..0690043 100644
+--- a/mysys/my_thread.c
++++ b/mysys/my_thread.c
+@@ -163,7 +163,11 @@ int my_thread_cancel(my_thread_handle *thread)
+ 
+   if (thread->handle)
+   {
++#ifndef _WIN_STORE
+      ok= TerminateThread(thread->handle, 0);
++#else
++    ok = TRUE;
++#endif
+      CloseHandle(thread->handle);
+   }
+   if (ok)
+diff --git a/mysys/my_windac.c b/mysys/my_windac.c
+index 137d44f..869a426 100644
+--- a/mysys/my_windac.c
++++ b/mysys/my_windac.c
+@@ -29,7 +29,11 @@
+ 
+ static my_bool is_nt()
+ {
++#ifdef _WIN_STORE
++  return 1;
++#else
+   return GetVersion() < 0x80000000;
++#endif // _WIN_STORE
+ }
+ 
+ /*
+diff --git a/mysys/my_winfile.c b/mysys/my_winfile.c
+index a5c13a3..87e8330 100644
+--- a/mysys/my_winfile.c
++++ b/mysys/my_winfile.c
+@@ -51,6 +51,8 @@
+ #include <share.h>
+ #include <sys/stat.h>
+ 
++wchar_t* utf8_to_wchar(const char *string, size_t *len);
++
+ /* Associates a file descriptor with an existing operating-system file handle.*/
+ File my_open_osfhandle(HANDLE handle, int oflag)
+ {
+@@ -248,8 +250,25 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode)
+     fileattrib|= FILE_FLAG_RANDOM_ACCESS;
+ 
+   /* try to open/create the file  */
++#ifdef _WIN_STORE
++  wchar_t* pathW = utf8_to_wchar(path, NULL);
++  CREATEFILE2_EXTENDED_PARAMETERS extParams;
++  memset(&extParams, 0, sizeof extParams);
++  extParams.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
++  extParams.lpSecurityAttributes = &SecurityAttributes;
++  extParams.dwFileAttributes = fileattrib & 0xFFFF;
++  extParams.dwFileFlags = fileattrib & 0xFFF00000;
++  extParams.dwSecurityQosFlags = fileattrib & 0x000F00000;
++  extParams.hTemplateFile = NULL;
++
++  osfh = CreateFile2(pathW, fileaccess, fileshare, filecreate, &extParams);
++  my_free(pathW);
++
++  if (osfh == INVALID_HANDLE_VALUE)
++#else
+   if ((osfh= CreateFile(path, fileaccess, fileshare, &SecurityAttributes, 
+     filecreate, fileattrib, NULL)) == INVALID_HANDLE_VALUE)
++#endif // _WIN_STORE
+   {
+     /*
+        OS call to open/create file failed! map the error, release
+@@ -641,7 +660,7 @@ int my_win_stat( const char *path, struct _stati64 *buf)
+   {
+     /* File size returned by stat is not accurate (may be outdated), fix it*/
+     WIN32_FILE_ATTRIBUTE_DATA data;
+-    if (GetFileAttributesEx(path, GetFileExInfoStandard, &data))
++    if (GetFileAttributesExA(path, GetFileExInfoStandard, &data))
+     {
+       LARGE_INTEGER li;
+       li.LowPart=    data.nFileSizeLow;
+@@ -679,4 +698,53 @@ int my_win_dup(File fd)
+   DBUG_RETURN(-1);
+ }
+ 
++wchar_t* utf8_to_wchar(const char *string, size_t *len)
++{
++  size_t buf_len;
++
++  /* 
++    Note: length (in bytes) of an utf8 string is always bigger than the
++    number of characters in this string. Hence a buffer of size len will
++    be sufficient. We add 1 for the terminating null character.
++  */
++
++  buf_len= len && *len ? *len : strlen(string);
++  wchar_t *buf=  (wchar_t*)malloc((buf_len+1)*sizeof(wchar_t));
++
++  if (!buf)
++  {
++    DBUG_PRINT("error",("Out of memory when converting utf8 string '%s'"
++                        " to wide-char representation", string));
++    return NULL;
++  }
++
++  size_t  res;
++  res= MultiByteToWideChar(CP_UTF8,            // convert from UTF-8
++                           0,                  // conversion flags
++                           string,             // input buffer
++                           buf_len,            // its size
++                           buf, buf_len);      // output buffer and its size
++  if (res)
++  {
++    buf[res]= '\0';
++    if (len)
++      *len= res;
++    return buf;
++  }
++
++  // error in MultiByteToWideChar()
++
++#ifndef DBUG_OFF
++  Error_message_buf error_buf;
++  DBUG_PRINT("error", ("Could not convert UPN from UTF-8"
++                       ", MultiByteToWideChar() failed with error %X (%s)",
++                       GetLastError(), get_last_error_message(error_buf)));
++#endif
++
++  // Let's check our assumption about sufficient buffer size
++  DBUG_ASSERT(ERROR_INSUFFICIENT_BUFFER != GetLastError());
++
++  return NULL;
++}
++
+ #endif /*_WIN32*/
+diff --git a/mysys_ssl/my_default.cc b/mysys_ssl/my_default.cc
+index d329fc9..11442bf 100644
+--- a/mysys_ssl/my_default.cc
++++ b/mysys_ssl/my_default.cc
+@@ -1321,7 +1321,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
+   the \SYSTEM32 from the end of the results of GetSystemDirectory(), or just
+   return GetSystemDirectory().
+  */
+-
++#ifndef _WIN_STORE
+ typedef UINT (WINAPI *GET_SYSTEM_WINDOWS_DIRECTORY)(LPSTR, UINT);
+ 
+ static size_t my_get_system_windows_directory(char *buffer, size_t size)
+@@ -1348,13 +1348,13 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
+   }
+   return count;
+ }
+-
++#endif // !_WIN_STORE
+ 
+ static const char *my_get_module_parent(char *buf, size_t size)
+ {
+   char *last= NULL;
+   char *end;
+-  if (!GetModuleFileName(NULL, buf, (DWORD) size))
++  if (!GetModuleFileNameA(NULL, buf, (DWORD) size))
+     return NULL;
+   end= strend(buf);
+ 
+@@ -1397,6 +1397,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
+ 
+   {
+     char fname_buffer[FN_REFLEN];
++#ifndef _WIN_STORE
+     if (my_get_system_windows_directory(fname_buffer, sizeof(fname_buffer)))
+       errors += add_directory(alloc, fname_buffer, dirs);
+ 
+@@ -1404,6 +1405,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
+       errors += add_directory(alloc, fname_buffer, dirs);
+ 
+     errors += add_directory(alloc, "C:/", dirs);
++#endif // !_WIN_STORE
+ 
+     if (my_get_module_parent(fname_buffer, sizeof(fname_buffer)) != NULL)
+       errors += add_directory(alloc, fname_buffer, dirs);
+diff --git a/sql-common/client.c b/sql-common/client.c
+index 9e88e9f..eebf26d 100644
+--- a/sql-common/client.c
++++ b/sql-common/client.c
+@@ -354,6 +354,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode,
+ */
+ 
+ #ifdef _WIN32
++extern wchar_t* utf8_to_wchar(const char *string, size_t *len);
+ 
+ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
+                                 const char **arg_host,
+@@ -361,6 +362,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
+ {
+   HANDLE hPipe=INVALID_HANDLE_VALUE;
+   char pipe_name[1024];
++  wchar_t pipe_nameW[1024];
+   DWORD dwMode;
+   int i;
+   my_bool testing_named_pipes=0;
+@@ -377,8 +379,27 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
+ 	   unix_socket, NullS);
+   DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s", host, unix_socket));
+ 
++  wchar_t* tmpW = utf8_to_wchar(pipe_name, NULL);
++  if (!tmpW)
++    return INVALID_HANDLE_VALUE;
++
++  memcpy(&pipe_nameW[0], tmpW, wcslen(tmpW) * 2);
++  my_free(tmpW);
++
+   for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
+   {
++#ifdef _WIN_STORE
++    CREATEFILE2_EXTENDED_PARAMETERS extParams;
++    memset(&extParams, 0, sizeof extParams);
++    extParams.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
++    extParams.dwFileFlags = FILE_FLAG_OVERLAPPED;
++    if ((hPipe = CreateFile2(pipe_nameW,
++			    GENERIC_READ | GENERIC_WRITE,
++			    0,
++			    OPEN_EXISTING,
++			    &extParams)) != INVALID_HANDLE_VALUE)
++      break;
++#else
+     if ((hPipe = CreateFile(pipe_name,
+ 			    GENERIC_READ | GENERIC_WRITE,
+ 			    0,
+@@ -387,6 +408,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
+ 			    FILE_FLAG_OVERLAPPED,
+ 			    NULL )) != INVALID_HANDLE_VALUE)
+       break;
++#endif // _WIN_STORE
+     if (GetLastError() != ERROR_PIPE_BUSY)
+     {
+       set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR,
+@@ -395,7 +417,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
+       return INVALID_HANDLE_VALUE;
+     }
+     /* wait for for an other instance */
+-    if (!WaitNamedPipe(pipe_name, connect_timeout))
++    if (!WaitNamedPipeW(pipe_nameW, connect_timeout))
+     {
+       set_mysql_extended_error(mysql, CR_NAMEDPIPEWAIT_ERROR, unknown_sqlstate,
+                                ER(CR_NAMEDPIPEWAIT_ERROR),
+@@ -469,7 +491,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+   ulong connect_number;
+   char connect_number_char[22], *p;
+   char *tmp= NULL;
+-  char *suffix_pos;
++  char *suffix_pos = NULL;
+   DWORD error_allow = 0;
+   DWORD error_code = 0;
+   DWORD event_access_rights= SYNCHRONIZE | EVENT_MODIFY_STATE;
+@@ -477,6 +499,8 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+   static const char *name_prefixes[] = {"","Global\\"};
+   const char *prefix;
+   int i;
++  wchar_t* tmpW = NULL;
++  extern wchar_t* utf8_to_wchar(const char *string, size_t *len);
+ 
+   /*
+     If this is NULL, somebody freed the MYSQL* options.  mysql_close()
+@@ -506,25 +530,31 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+     prefix= name_prefixes[i];
+     suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", NullS);
+     my_stpcpy(suffix_pos, "CONNECT_REQUEST");
+-    event_connect_request= OpenEvent(event_access_rights, FALSE, tmp);
++    event_connect_request= OpenEventA(event_access_rights, FALSE, tmp);
+     if (event_connect_request)
+     {
+       break;
+     }
+   }
++  tmpW = utf8_to_wchar(tmp, NULL);
++  if (!tmpW)
++  {
++    error_allow = CR_OUT_OF_MEMORY;
++    goto err;
++  }
+   if (!event_connect_request)
+   {
+     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
+     goto err;
+   }
+   my_stpcpy(suffix_pos, "CONNECT_ANSWER");
+-  if (!(event_connect_answer= OpenEvent(event_access_rights,FALSE,tmp)))
++  if (!(event_connect_answer= OpenEventW(event_access_rights,FALSE,tmpW)))
+   {
+     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
+     goto err;
+   }
+   my_stpcpy(suffix_pos, "CONNECT_DATA");
+-  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
++  if (!(handle_connect_file_map= OpenFileMappingW(FILE_MAP_WRITE,FALSE,tmpW)))
+   {
+     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
+     goto err;
+@@ -537,7 +567,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+   }
+ 
+   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
+-  connect_named_mutex= CreateMutex(NULL, TRUE, tmp);
++  connect_named_mutex= CreateMutexW(NULL, TRUE, tmpW);
+   if (connect_named_mutex == NULL)
+   {
+     error_allow= CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+@@ -579,7 +609,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+   suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", connect_number_char,
+ 		       "_", NullS);
+   my_stpcpy(suffix_pos, "DATA");
+-  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
++  if ((handle_file_map = OpenFileMappingW(FILE_MAP_WRITE,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
+     goto err2;
+@@ -592,35 +622,35 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
+   }
+ 
+   my_stpcpy(suffix_pos, "SERVER_WROTE");
+-  if ((event_server_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
++  if ((event_server_wrote = OpenEventW(event_access_rights,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+     goto err2;
+   }
+ 
+   my_stpcpy(suffix_pos, "SERVER_READ");
+-  if ((event_server_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
++  if ((event_server_read = OpenEventW(event_access_rights,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+     goto err2;
+   }
+ 
+   my_stpcpy(suffix_pos, "CLIENT_WROTE");
+-  if ((event_client_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
++  if ((event_client_wrote = OpenEventW(event_access_rights,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+     goto err2;
+   }
+ 
+   my_stpcpy(suffix_pos, "CLIENT_READ");
+-  if ((event_client_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
++  if ((event_client_read = OpenEventW(event_access_rights,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+     goto err2;
+   }
+ 
+   my_stpcpy(suffix_pos, "CONNECTION_CLOSED");
+-  if ((event_conn_closed = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
++  if ((event_conn_closed = OpenEventW(event_access_rights,FALSE,tmpW)) == NULL)
+   {
+     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+     goto err2;
+@@ -658,6 +688,7 @@ err2:
+   }
+ err:
+   my_free(tmp);
++  my_free(tmpW);
+   if (error_allow)
+     error_code = GetLastError();
+   if (event_connect_request)
+@@ -3043,7 +3074,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
+ #ifdef _WIN32
+   char cpbuf[64];
+   {
+-    my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
++    my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetACP());
+     csname= my_os_charset_to_mysql_charset(cpbuf);
+   }
+ #elif defined(HAVE_NL_LANGINFO)
+diff --git a/sql-common/client_plugin.c b/sql-common/client_plugin.c
+index c7dfda9..63ea56d 100644
+--- a/sql-common/client_plugin.c
++++ b/sql-common/client_plugin.c
+@@ -288,6 +288,9 @@ add_plugin_withargs(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+ */
+ static void load_env_plugins(MYSQL *mysql)
+ {
++#ifdef _WIN_STORE
++  return;
++#else
+   char *plugs, *free_env, *s= getenv("LIBMYSQL_PLUGINS");
+   char *enable_cleartext_plugin= getenv("LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN");
+ 
+@@ -309,7 +312,7 @@ static void load_env_plugins(MYSQL *mysql)
+   } while (s);
+ 
+   my_free(free_env);
+-
++#endif
+ }
+ 
+ 
+@@ -420,6 +423,9 @@ struct st_mysql_client_plugin *
+ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
+                     int argc, va_list args)
+ {
++#ifdef _WIN_STORE
++  return NULL;
++#else
+   const char *errmsg;
+   char dlpath[FN_REFLEN+1];
+   void *sym, *dlhandle;
+@@ -534,6 +540,7 @@ err:
+   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
+                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
+   DBUG_RETURN (NULL);
++#endif
+ }
+ 
+ /* see <mysql/client_plugin.h> for a full description */
+diff --git a/strings/dtoa.c b/strings/dtoa.c
+index e05f86a..cb4d91c 100644
+--- a/strings/dtoa.c
++++ b/strings/dtoa.c
+@@ -1360,7 +1360,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
+   U aadj2, adj, rv, rv0;
+   Long L;
+   ULong y, z;
+-  Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
++  Bigint *bb = NULL, *bb1, *bd = NULL, *bd0, *bs = NULL, *delta = NULL;
+ #ifdef Honor_FLT_ROUNDS
+   int rounding;
+ #endif
+@@ -2172,7 +2172,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
+   Long L;
+   int denorm;
+   ULong x;
+-  Bigint *b, *b1, *delta, *mlo, *mhi, *S;
++  Bigint *b, *b1, *delta, *mlo = NULL, *mhi, *S;
+   U d2, eps, u;
+   double ds;
+   char *s, *s0;
+-- 
+2.16.1.windows.4
+
