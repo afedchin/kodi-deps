@@ -1,0 +1,426 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 935d416..6b551ea 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -112,7 +112,7 @@ IF(MSVC)
+       FOREACH(COMPILER CXX C)
+         SET(COMPILER_FLAGS "${CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}}")
+         IF (NOT COMPILER_FLAGS STREQUAL "")
+-          STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
++          #STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
+           IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
+             SET(COMPILER_FLAGS "${COMPILER_FLAGS} ${RTC_OPTIONS}")
+             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
+@@ -242,6 +242,9 @@ IF(WIN32)
+   SET(HAVE_THREADS 1)
+   ADD_DEFINITIONS(-DHAVE_DLOPEN)
+   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
++  IF(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++    ADD_DEFINITIONS(-D_WIN_STORE)
++  ENDIF()
+   IF(MSVC)
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996" )
+   ENDIF()
+@@ -261,7 +264,7 @@ IF(WITH_SSL)
+   STRING(TOUPPER ${WITH_SSL} WITH_SSL)
+ ENDIF()
+ IF(WITH_SSL STREQUAL "ON")
+-  IF(WIN32)
++  IF(WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+     SET(WITH_SSL "SCHANNEL")
+   ELSE()
+     SET(WITH_SSL "OPENSSL")
+@@ -376,15 +379,15 @@ ENDIF()
+ 
+ IF(IS_DIRECTORY ${CC_SOURCE_DIR}/unittest)
+   IF(WITH_UNIT_TESTS)
+-    ADD_SUBDIRECTORY(unittest/mytap)
+-    ADD_SUBDIRECTORY(unittest/libmariadb)
++    #ADD_SUBDIRECTORY(unittest/mytap)
++    #ADD_SUBDIRECTORY(unittest/libmariadb)
+   ENDIF()
+ ENDIF()
+ 
+ IF(CLIENT_DOCS)
+-  INSTALL(DIRECTORY ${CLIENT_DOCS}
+-          DESTINATION ${DOCS_INSTALL_DIR_${INSTALL_LAYOUT}}
+-          COMPONENT SharedLibraries)
++  #INSTALL(DIRECTORY ${CLIENT_DOCS}
++  #        DESTINATION ${DOCS_INSTALL_DIR_${INSTALL_LAYOUT}}
++  #        COMPONENT SharedLibraries)
+ ENDIF()
+ 
+ 
+diff --git a/cmake/install.cmake b/cmake/install.cmake
+index 04834d9..8bbff3c 100644
+--- a/cmake/install.cmake
++++ b/cmake/install.cmake
+@@ -67,23 +67,23 @@ ENDIF()
+ 
+ 
+ SET(INSTALL_BINDIR_DEFAULT "bin")
+-SET(INSTALL_LIBDIR_DEFAULT "lib/mariadb")
++SET(INSTALL_LIBDIR_DEFAULT "lib")
+ SET(INSTALL_INCLUDEDIR_DEFAULT "include/mariadb")
+ SET(INSTALL_DOCDIR_DEFAULT "docs")
+-SET(INSTALL_PLUGINDIR_DEFAULT "lib/mariadb/plugin")
++SET(INSTALL_PLUGINDIR_DEFAULT "bin")
+ 
+ #
+ # RPM layout
+ #
+ SET(INSTALL_BINDIR_RPM "bin")
+ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+-  SET(INSTALL_LIBDIR_RPM "lib64/mariadb")
+-  SET(INSTALL_PLUGINDIR_RPM "lib64/mariadb/plugin")
++  SET(INSTALL_LIBDIR_RPM "lib")
++  SET(INSTALL_PLUGINDIR_RPM "bin")
+ ELSE()
+   SET(INSTALL_LIBDIR_RPM "lib")
+-  SET(INSTALL_PLUGINDIR_RPM "lib/mariadb/plugin")
++  SET(INSTALL_PLUGINDIR_RPM "bin")
+ ENDIF()
+-SET(INSTALL_INCLUDEDIR_RPM "include")
++SET(INSTALL_INCLUDEDIR_RPM "include/mariadb")
+ SET(INSTALL_DOCDIR_RPM "docs")
+ 
+ #
+diff --git a/include/ma_global.h b/include/ma_global.h
+index ce96b00..1e16860 100644
+--- a/include/ma_global.h
++++ b/include/ma_global.h
+@@ -1087,7 +1087,11 @@ do { doubleget_union _tmp; \
+ #ifdef HAVE_DLOPEN
+ #ifdef _WIN32
+ #define dlsym(lib, name) GetProcAddress((HMODULE)lib, name)
+-#define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
++#ifndef _WIN_STORE
++#define dlopen(libname, unused) LoadLibraryExW(libname, NULL, 0)
++#else
++#define dlopen(libname, unused) LoadPackagedLibrary(libname, 0)
++#endif
+ #define dlclose(lib) FreeLibrary((HMODULE)lib)
+ #elif defined(HAVE_DLFCN_H)
+ #include <dlfcn.h>
+@@ -1117,4 +1121,7 @@ typedef unsigned long long intptr;
+ #define RTLD_NOW 1
+ #endif
+ 
++#ifdef _WIN_STORE
++#define getenv(x) NULL
++#endif
+ #endif /* _global_h */
+diff --git a/libmariadb/CMakeLists.txt b/libmariadb/CMakeLists.txt
+index 430020b..684245c 100644
+--- a/libmariadb/CMakeLists.txt
++++ b/libmariadb/CMakeLists.txt
+@@ -438,10 +438,14 @@ SET_TARGET_PROPERTIES(libmariadb PROPERTIES VERSION
+ 
+ INSTALL(TARGETS mariadbclient
+           COMPONENT Development
+-          DESTINATION ${INSTALL_LIBDIR})
++        RUNTIME DESTINATION ${INSTALL_BINDIR}
++        LIBRARY DESTINATION ${INSTALL_LIBDIR}
++        ARCHIVE DESTINATION ${INSTALL_LIBDIR})
+ INSTALL(TARGETS libmariadb
+           COMPONENT SharedLibraries
+-        DESTINATION ${INSTALL_LIBDIR})
++        RUNTIME DESTINATION ${INSTALL_BINDIR}
++        LIBRARY DESTINATION ${INSTALL_LIBDIR}
++        ARCHIVE DESTINATION ${INSTALL_LIBDIR})
+ 
+ IF(WIN32)
+    # On Windows, install PDB
+diff --git a/libmariadb/ma_client_plugin.c.in b/libmariadb/ma_client_plugin.c.in
+index 8d61d31..df2765c 100644
+--- a/libmariadb/ma_client_plugin.c.in
++++ b/libmariadb/ma_client_plugin.c.in
+@@ -364,7 +364,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
+ #ifdef _WIN32
+   char errbuf[1024];
+ #endif
+-  char dlpath[FN_REFLEN+1];
++  wchar_t dlpath[FN_REFLEN+1];
+   void *sym, *dlhandle;
+   struct st_mysql_client_plugin *plugin;
+   char *env_plugin_dir= getenv("MARIADB_PLUGIN_DIR");
+@@ -383,19 +383,19 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
+   }
+ 
+   /* Compile dll path */
+-  snprintf(dlpath, sizeof(dlpath) - 1, "%s/%s%s",
++  swprintf(dlpath, sizeof(dlpath) - 1, L"%S/%S%S",
+            mysql->options.extension && mysql->options.extension->plugin_dir ?
+            mysql->options.extension->plugin_dir : (env_plugin_dir) ? env_plugin_dir :
+            MARIADB_PLUGINDIR, name, SO_EXT);
+ 
+   /* Open new dll handle */
+-  if (!(dlhandle= dlopen((const char *)dlpath, RTLD_NOW)))
++  if (!(dlhandle= dlopen((const wchar_t *)dlpath, RTLD_NOW)))
+   {
+ #ifdef _WIN32
+    char winmsg[255];
+    size_t len;
+    winmsg[0] = 0;
+-   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
++   FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM,
+                  NULL,
+                  GetLastError(),
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+@@ -405,7 +405,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
+      len--;
+    if (len)
+      winmsg[len] = 0;
+-   snprintf(errbuf, sizeof(errbuf), "%s Library path is '%s'", winmsg, dlpath);
++   snprintf(errbuf, sizeof(errbuf), "%s Library path is '%wS'", winmsg, dlpath);
+    errmsg= errbuf;
+ #else
+     errmsg= dlerror();
+diff --git a/libmariadb/ma_context.c b/libmariadb/ma_context.c
+index 68b3560..a5df5b3 100644
+--- a/libmariadb/ma_context.c
++++ b/libmariadb/ma_context.c
+@@ -656,7 +656,7 @@ int
+ my_context_init(struct my_context *c, size_t stack_size)
+ {
+   memset(c, 0, sizeof(*c));
+-  c->lib_fiber= CreateFiber(stack_size, my_context_trampoline, c);
++  c->lib_fiber= CreateFiberEx(stack_size, 0, 0, my_context_trampoline, c);
+   if (c->lib_fiber)
+     return 0;
+   return -1;
+@@ -683,7 +683,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
+ int
+ my_context_continue(struct my_context *c)
+ {
+-  void *current_fiber=  IsThreadAFiber() ? GetCurrentFiber() : ConvertThreadToFiber(c);
++  void *current_fiber=  IsThreadAFiber() ? GetCurrentFiber() : ConvertThreadToFiberEx(c, 0);
+   c->app_fiber= current_fiber;
+   SwitchToFiber(c->lib_fiber);
+   return c->return_value;
+diff --git a/libmariadb/ma_default.c b/libmariadb/ma_default.c
+index 064d1c0..e935bc3 100644
+--- a/libmariadb/ma_default.c
++++ b/libmariadb/ma_default.c
+@@ -28,6 +28,7 @@
+ #ifdef _WIN32
+ #include <io.h>
+ #include "Shlwapi.h"
++#include "Pathcch.h"
+ 
+ static const char *ini_exts[]= {"ini", "cnf", 0};
+ #define R_OK 4
+@@ -80,6 +81,7 @@ char **get_default_configuration_dirs()
+      2. Windows directory
+      3. C:\
+   */
++#ifndef _WIN_STORE
+   if (!GetSystemDirectory(dirname, FN_REFLEN) ||
+       add_cfg_dir(configuration_dirs, dirname))
+     goto error;
+@@ -90,10 +92,10 @@ char **get_default_configuration_dirs()
+ 
+   if (add_cfg_dir(configuration_dirs, "C:"))
+     goto error;
+-
+-  if (GetModuleFileName(NULL, dirname, FN_REFLEN))
++#endif
++  if (GetModuleFileNameA(NULL, dirname, FN_REFLEN))
+   {
+-    PathRemoveFileSpec(dirname);
++    PathCchRemoveFileSpec(dirname, FN_REFLEN / 2);
+     if (add_cfg_dir(configuration_dirs, dirname))
+       goto error;
+   }
+diff --git a/libmariadb/ma_dtoa.c b/libmariadb/ma_dtoa.c
+index 5d67f7b..bd854e9 100644
+--- a/libmariadb/ma_dtoa.c
++++ b/libmariadb/ma_dtoa.c
+@@ -1309,7 +1309,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
+   Long L;
+   int denorm;
+   ULong x;
+-  Bigint *b, *b1, *delta, *mlo, *mhi, *S;
++  Bigint *b, *b1, *delta, *mlo = NULL, *mhi, *S;
+   U d2, eps, u;
+   double ds;
+   char *s, *s0;
+diff --git a/plugins/pvio/pvio_npipe.c b/plugins/pvio/pvio_npipe.c
+index e3900dd..6224432 100644
+--- a/plugins/pvio/pvio_npipe.c
++++ b/plugins/pvio/pvio_npipe.c
+@@ -246,7 +246,7 @@ my_bool pvio_npipe_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+   if (cinfo->type == PVIO_TYPE_NAMEDPIPE)
+   {
+     my_bool has_timedout= 0;
+-    char szPipeName[MAX_PATH];
++    wchar_t szPipeName[MAX_PATH];
+     DWORD dwMode;
+ 
+     if ( ! cinfo->unix_socket || (cinfo->unix_socket)[0] == 0x00)
+@@ -255,18 +255,18 @@ my_bool pvio_npipe_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+       cinfo->host=LOCAL_HOST_NAMEDPIPE;
+ 
+     szPipeName[MAX_PATH - 1]= 0;
+-    snprintf(szPipeName, MAX_PATH - 1, "\\\\%s\\pipe\\%s", cinfo->host, cinfo->unix_socket);
++    swprintf(szPipeName, MAX_PATH - 1, L"\\\\%S\\pipe\\%S", cinfo->host, cinfo->unix_socket);
+ 
+     while (1)
+     {
+-      if ((cpipe->pipe = CreateFile(szPipeName,
+-                                    GENERIC_READ |
+-                                    GENERIC_WRITE,
++      CREATEFILE2_EXTENDED_PARAMETERS ext = { 0 };
++      ext.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
++      ext.dwFileFlags = FILE_FLAG_OVERLAPPED;
++      if ((cpipe->pipe = CreateFile2(szPipeName,
++                                    GENERIC_READ | GENERIC_WRITE,
+                                     0,               /* no sharing */
+-                                    NULL,            /* default security attributes */
+                                     OPEN_EXISTING,
+-                                    FILE_FLAG_OVERLAPPED,
+-                                    NULL)) != INVALID_HANDLE_VALUE)
++                                    &ext)) != INVALID_HANDLE_VALUE)
+         break;
+ 
+       if (GetLastError() != ERROR_PIPE_BUSY)
+@@ -276,7 +276,7 @@ my_bool pvio_npipe_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+         goto end;
+       }
+ 
+-      if (has_timedout || !WaitNamedPipe(szPipeName, pvio->timeout[PVIO_CONNECT_TIMEOUT]))
++      if (has_timedout || !WaitNamedPipeW(szPipeName, pvio->timeout[PVIO_CONNECT_TIMEOUT]))
+       {
+         pvio->set_error(pvio->mysql, CR_NAMEDPIPEWAIT_ERROR, "HY000", 0,
+                        cinfo->host, cinfo->unix_socket, GetLastError());
+@@ -294,7 +294,7 @@ my_bool pvio_npipe_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+     }
+ 
+     /* Register event handler for overlapped IO */
+-    if (!(cpipe->overlapped.hEvent= CreateEvent(NULL, FALSE, FALSE, NULL)))
++    if (!(cpipe->overlapped.hEvent= CreateEventW(NULL, FALSE, FALSE, NULL)))
+     {
+       pvio->set_error(pvio->mysql, CR_EVENT_CREATE_FAILED, "HY000", 0,
+                      GetLastError());
+diff --git a/plugins/pvio/pvio_shmem.c b/plugins/pvio/pvio_shmem.c
+index 8e7efa7..d1271e0 100644
+--- a/plugins/pvio/pvio_shmem.c
++++ b/plugins/pvio/pvio_shmem.c
+@@ -101,7 +101,7 @@ typedef struct {
+   size_t buffer_size;
+ } PVIO_SHM;
+ 
+-char *StrEvent[]= {"SERVER_WROTE", "SERVER_READ", "CLIENT_WROTE", "CLIENT_READ", "CONNECTION_CLOSED"};
++wchar_t *StrEvent[]= {L"SERVER_WROTE", L"SERVER_READ", L"CLIENT_WROTE", L"CLIENT_READ", L"CONNECTION_CLOSED"};
+ 
+ struct st_pvio_shm {
+   char *shm_name;
+@@ -239,8 +239,9 @@ int pvio_shm_fast_send(MARIADB_PVIO *pvio)
+ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+ {
+   const char *base_memory_name;
+-  char *prefixes[]= {"", "Global\\", NULL};
+-  char *shm_name, *shm_suffix, *shm_prefix;
++  wchar_t *prefixes[]= {L"", L"Global\\", NULL};
++  wchar_t *shm_name, *shm_suffix = NULL, *shm_prefix = NULL;
++  size_t wbuf_len = 0;
+   uchar i= 0;
+   int len;
+   int cid;
+@@ -264,8 +265,9 @@ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+  
+ 
+   base_memory_name= (cinfo->host) ? cinfo->host : SHM_DEFAULT_NAME;
++  wbuf_len = strlen(base_memory_name) + 40;
+ 
+-  if (!(shm_name= (char *)LocalAlloc(LMEM_ZEROINIT, strlen(base_memory_name) + 40)))
++  if (!(shm_name= (wchar_t *)LocalAlloc(LMEM_ZEROINIT, wbuf_len)))
+   {
+     PVIO_SET_ERROR(cinfo->mysql, CR_OUT_OF_MEMORY, "HY000", 0, "");
+     goto error;
+@@ -274,10 +276,10 @@ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+   /* iterate through prefixes */
+   while (prefixes[i])
+   {
+-    len= sprintf(shm_name, "%s%s_", prefixes[i], base_memory_name);
++    len= swprintf(shm_name, wbuf_len, L"%wS%S_", prefixes[i], base_memory_name);
+     shm_suffix= shm_name + len;
+-    strcpy(shm_suffix, "CONNECT_REQUEST");
+-    if ((hdlConnectRequest= OpenEvent(dwDesiredAccess, 0, shm_name)))
++    wcscpy(shm_suffix, L"CONNECT_REQUEST");
++    if ((hdlConnectRequest= OpenEventW(dwDesiredAccess, 0, shm_name)))
+     {
+       /* save prefix to prevent further loop */
+       shm_prefix= prefixes[i];
+@@ -291,16 +293,16 @@ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+     goto error;
+   }
+ 
+-  strcpy(shm_suffix, "CONNECT_ANSWER");
+-  if (!(hdlConnectRequestAnswer= OpenEvent(dwDesiredAccess, 0, shm_name)))
++  wcscpy(shm_suffix, L"CONNECT_ANSWER");
++  if (!(hdlConnectRequestAnswer= OpenEventW(dwDesiredAccess, 0, shm_name)))
+   {
+     PVIO_SET_ERROR(cinfo->mysql, CR_SHARED_MEMORY_CONNECT_ERROR, "HY000", 0, "Opening CONNECT_ANSWER event failed", GetLastError());
+     goto error;
+   }
+   
+   /* get connection id, so we can build the filename used for connection */
+-  strcpy(shm_suffix, "CONNECT_DATA");
+-  if (!(file_map= OpenFileMapping(FILE_MAP_WRITE, 0, shm_name)))
++  wcscpy(shm_suffix, L"CONNECT_DATA");
++  if (!(file_map= OpenFileMappingW(FILE_MAP_WRITE, 0, shm_name)))
+   {
+     PVIO_SET_ERROR(cinfo->mysql, CR_SHARED_MEMORY_CONNECT_ERROR, "HY000", 0, "OpenFileMapping failed", GetLastError());
+     goto error;
+@@ -343,11 +345,11 @@ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+ 
+   cid= uint4korr(map);
+ 
+-  len= sprintf(shm_name, "%s%s_%d_", shm_prefix, base_memory_name, cid);
++  len= swprintf(shm_name, wbuf_len, L"%wS%S_%d_", shm_prefix, base_memory_name, cid);
+   shm_suffix= shm_name + len;
+   
+-  strcpy(shm_suffix, "DATA");
+-  pvio_shm->file_map= OpenFileMapping(FILE_MAP_WRITE, 0, shm_name);
++  wcscpy(shm_suffix, L"DATA");
++  pvio_shm->file_map= OpenFileMappingW(FILE_MAP_WRITE, 0, shm_name);
+   if (pvio_shm->file_map == NULL)
+   {
+     PVIO_SET_ERROR(cinfo->mysql, CR_SHARED_MEMORY_CONNECT_ERROR, "HY000", 0, "OpenFileMapping failed", GetLastError());
+@@ -361,8 +363,8 @@ my_bool pvio_shm_connect(MARIADB_PVIO *pvio, MA_PVIO_CINFO *cinfo)
+ 
+   for (i=0; i < 5; i++)
+   {
+-    strcpy(shm_suffix, StrEvent[i]);
+-    if (!(pvio_shm->event[i]= OpenEvent(dwDesiredAccess, 0, shm_name)))
++    wcscpy(shm_suffix, StrEvent[i]);
++    if (!(pvio_shm->event[i]= OpenEventW(dwDesiredAccess, 0, shm_name)))
+     {
+       PVIO_SET_ERROR(cinfo->mysql, CR_SHARED_MEMORY_CONNECT_ERROR, "HY000", 0, "Couldn't create event", GetLastError());
+       goto error;
+diff --git a/win-iconv/win_iconv.c b/win-iconv/win_iconv.c
+index 84bb43b..e800a0a 100644
+--- a/win-iconv/win_iconv.c
++++ b/win-iconv/win_iconv.c
+@@ -687,6 +687,7 @@ static RFC1766TOLCIDA Rfc1766ToLcidA;
+ static int
+ load_mlang(void)
+ {
++#ifndef _WIN_STORE
+     HMODULE h;
+     if (ConvertINetString != NULL)
+         return TRUE;
+@@ -700,6 +701,9 @@ load_mlang(void)
+     LcidToRfc1766A = (LCIDTORFC1766A)GetProcAddressA(h, "LcidToRfc1766A");
+     Rfc1766ToLcidA = (RFC1766TOLCIDA)GetProcAddressA(h, "Rfc1766ToLcidA");
+     return TRUE;
++#else
++    return FALSE;
++#endif // !_WIN_STORE
+ }
+ 
+ iconv_t
+-- 
+2.16.1.windows.4
+

@@ -1,0 +1,93 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6b551ea..f588c23 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -115,9 +115,9 @@ IF(MSVC)
+           #STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
+           IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
+             SET(COMPILER_FLAGS "${COMPILER_FLAGS} ${RTC_OPTIONS}")
+-            STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
++            #STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
+           ELSE()
+-            STRING(REPLACE "/Zi" "/Z7" COMPILER_FLAGS ${COMPILER_FLAGS})
++            #STRING(REPLACE "/Zi" "/Z7" COMPILER_FLAGS ${COMPILER_FLAGS})
+           ENDIF()
+           MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
+           SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS})
+@@ -203,6 +203,10 @@ IF(WITH_EXTERNAL_ZLIB)
+   IF(ZLIB_FOUND)
+     INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR})
+     SET(LIBZ ${ZLIB_LIBRARY})
++    IF(WIN32)
++      ADD_DEFINITIONS(-DZLIB_DLL)
++      SET(SYSTEM_LIBS ${SYSTEM_LIBS} ${LIBZ})
++    ENDIF()
+   ENDIF()
+ ENDIF()
+ 
+@@ -323,7 +327,7 @@ IF(NOT WITH_SSL STREQUAL "OFF")
+   MARK_AS_ADVANCED(SSL_SOURCES)
+ ENDIF()
+ 
+-IF(NOT WIN32)
++IF(NOT WIN32 OR ICONV_EXTERNAL)
+   INCLUDE(${CC_SOURCE_DIR}/cmake/FindIconv.cmake)
+ ENDIF()
+ 
+@@ -337,12 +341,12 @@ CONFIGURE_FILE(${CC_SOURCE_DIR}/include/mariadb_version.h.in
+ INCLUDE_DIRECTORIES(${CC_BINARY_DIR}/include)
+ 
+ IF(WIN32)
+-  SET(SYSTEM_LIBS ws2_32 advapi32 kernel32 shlwapi crypt32)
++  SET(SYSTEM_LIBS ws2_32 advapi32 kernel32 shlwapi crypt32 ${SYSTEM_LIBS})
+ ELSE()
+   SET(SYSTEM_LIBS ${SYSTEM_LIBS} ${LIBPTHREAD} ${LIBDL} ${LIBM})
+-  IF(ICONV_EXTERNAL)
+-    SET(SYSTEM_LIBS ${SYSTEM_LIBS} ${ICONV_LIBRARIES})
+-  ENDIF()
++ENDIF()
++IF(ICONV_EXTERNAL)
++  SET(SYSTEM_LIBS ${SYSTEM_LIBS} ${ICONV_LIBRARIES})
+ ENDIF()
+ IF(WITH_SSL)
+   SET(SYSTEM_LIBS ${SYSTEM_LIBS} ${SSL_LIBRARIES})
+diff --git a/libmariadb/CMakeLists.txt b/libmariadb/CMakeLists.txt
+index 684245c..8cc86bc 100644
+--- a/libmariadb/CMakeLists.txt
++++ b/libmariadb/CMakeLists.txt
+@@ -295,10 +295,15 @@ ${SSL_SOURCES}
+ )
+ 
+ IF(WIN32)
+-  ADD_DEFINITIONS(-DSIZEOF_CHARP=${CMAKE_SIZEOF_VOID_P})
+-  INCLUDE_DIRECTORIES(${CC_SOURCE_DIR}/win-iconv)
+-  SET(LIBMARIADB_SOURCES ${LIBMARIADB_SOURCES}
+-                         ${CC_SOURCE_DIR}/win-iconv/win_iconv.c)
++  IF(ICONV_EXTERNAL)
++     INCLUDE_DIRECTORIES(BEFORE ${ICONV_INCLUDE_DIR}) 
++     ADD_DEFINITIONS(-DUSE_LIBICONV_DLL)
++  ELSE()
++    ADD_DEFINITIONS(-DSIZEOF_CHARP=${CMAKE_SIZEOF_VOID_P})
++    INCLUDE_DIRECTORIES(${CC_SOURCE_DIR}/win-iconv)
++    SET(LIBMARIADB_SOURCES ${LIBMARIADB_SOURCES}
++                           ${CC_SOURCE_DIR}/win-iconv/win_iconv.c)
++  ENDIF()
+ ELSE()
+   IF(ICONV_INCLUDE_DIR)
+      INCLUDE_DIRECTORIES(BEFORE ${ICONV_INCLUDE_DIR}) 
+diff --git a/libmariadb/ma_charset.c b/libmariadb/ma_charset.c
+index 78e58af..fc477be 100644
+--- a/libmariadb/ma_charset.c
++++ b/libmariadb/ma_charset.c
+@@ -53,7 +53,7 @@
+ #include <mariadb_ctype.h>
+ #include <ma_string.h>
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(USE_LIBICONV_DLL)
+ #include "../win-iconv/iconv.h"
+ #else
+ #include <iconv.h>
+-- 
+2.16.1.windows.4
+
