@@ -122,7 +122,7 @@ index 3b54ebd..c58f06a 100644
  
    /* Strip off the sorting rules, keep only the language part.  */
    langid = LANGIDFROMLCID (lcid);
-@@ -1231,12 +1239,32 @@ load_domain (const char *filename)
+@@ -1231,12 +1239,28 @@ load_domain (const char *filename)
    size_t to_read;
    char *read_ptr;
  
@@ -134,10 +134,10 @@ index 3b54ebd..c58f06a 100644
 +  if (!filenameW)
 +  {
 +	  fh = CreateFile2(filenameW, GENERIC_READ, FILE_SHARE_WRITE, OPEN_EXISTING, NULL);
-+	  free(filenameW);
 +  }
 +  else
 +	  fh = INVALID_HANDLE_VALUE;
++  free(filenameW);
 +#else
    fh = CreateFileA (filename, GENERIC_READ, FILE_SHARE_WRITE, NULL,
                      OPEN_EXISTING, 0, NULL);
@@ -145,13 +145,10 @@ index 3b54ebd..c58f06a 100644
    if (fh == INVALID_HANDLE_VALUE)
      return NULL;
  
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
-+  WIN32_FILE_ATTRIBUTE_DATA fileinfo;
-+  GetFileAttributesEx(filenameW, GetFileExInfoStandard, &fileinfo);
-+  size = fileinfo.nFileSizeHigh;
-+#else
-   size = GetFileSize (fh, NULL);
-+#endif
+-  size = GetFileSize (fh, NULL);
++  LARGE_INTEGER fileSize;
++  GetFileSizeEx(fh, &fileSize);
++  size = fileSize.LowPart;
    if (size == INVALID_FILE_SIZE)
      {
        CloseHandle (fh);
@@ -160,7 +157,7 @@ index 3b54ebd..c58f06a 100644
    int n;
    char *result;
 +#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
-+  unsigned int cpno = CP_ACP;
++  unsigned int cpno = GetACP();
 +#else
    unsigned int cpno = GetConsoleOutputCP ();
  
@@ -176,51 +173,6 @@ index 3b54ebd..c58f06a 100644
  
    n = WideCharToMultiByte (cpno, 0, string, length, NULL, 0, NULL, NULL);
    if (n < 0 || (n+1) <= 0)
-diff --git a/src/w32-iconv.c b/src/w32-iconv.c
-index c10bb32..c448fec 100644
---- a/src/w32-iconv.c
-+++ b/src/w32-iconv.c
-@@ -951,7 +951,11 @@ name_to_codepage(const char *name)
- 
-     if (*name == '\0' ||
- 	strcmp(name, "char") == 0)
--        return GetACP();
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
-+		return CP_ACP;
-+#else
-+		return GetACP();
-+#endif
-     else if (strcmp(name, "wchar_t") == 0)
-         return 1200;
-     else if (_strnicmp(name, "cp", 2) == 0)
-@@ -1079,6 +1083,27 @@ sbcs_mblen(csconv_t *cv, const uchar *buf, int bufsize)
-   return 1;
- }
- 
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
-+// this code was taken from mingw codebase
-+static BOOL
-+IsDBCSLeadByteEx(UINT CodePage, BYTE TestChar)
-+{
-+	CPINFO lpCPInfo;
-+	int i;
-+
-+	if (GetCPInfo(CodePage, &lpCPInfo) == 0)
-+		return FALSE;
-+
-+	if (lpCPInfo.MaxCharSize == 2) {
-+		for (i = 0; i < MAX_LEADBYTES && lpCPInfo.LeadByte[i]; i += 2) {
-+			if (TestChar >= lpCPInfo.LeadByte[i] && TestChar <= lpCPInfo.LeadByte[i + 1])
-+				return TRUE;
-+		}
-+	}
-+	return FALSE;
-+}
-+#endif
-+
- static int
- dbcs_mblen(csconv_t *cv, const uchar *buf, int bufsize)
- {
 -- 
 2.10.2.windows.1
 
