@@ -92,11 +92,12 @@ index 0cee8a2..134441a 100644
  target_include_directories(libbluray
    PRIVATE
    $<BUILD_INTERFACE:.;cmake;src;src/libbluray;contrib/libudfread/src/;${CMAKE_CURRENT_BINARY_DIR}>
-@@ -194,6 +200,20 @@ target_include_directories(libbluray
+@@ -194,6 +200,21 @@ target_include_directories(libbluray
    $<INSTALL_INTERFACE:include/libbluray>
  )
  
 +if(MSVC AND CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
++  target_compile_definitions(libbluray PRIVATE _WIN_STORE)
 +  target_sources(libbluray PRIVATE
 +    ${CMAKE_CURRENT_SOURCE_DIR}/src/uwpapi.cpp
 +  )
@@ -145,7 +146,7 @@ index ba1b675..090e68c 100644
  
  udfread *udfread_init(void)
  {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
      /* set up logging */
      if (getenv("UDFREAD_LOG")) {
          enable_log = 1;
@@ -161,17 +162,14 @@ diff --git a/src/file/dirs.h b/src/file/dirs.h
 index 820917f..b11399f 100644
 --- a/src/file/dirs.h
 +++ b/src/file/dirs.h
-@@ -22,8 +22,12 @@
+@@ -22,8 +22,9 @@
  
  #include "util/attributes.h"
  
 -#ifdef _WIN32
-+#if defined(_WIN32)
-+#  include <winapifamily.h>
-+#  if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#if defined(_WIN32) && !defined(_WIN_STORE)
 +// required for BDJ only (unavailable on UWP)
  BD_PRIVATE char       *win32_get_font_dir(const char *font_file);
-+#  endif
  #endif
  
  /*
@@ -184,7 +182,7 @@ index e165fea..c508005 100644
  #include <limits.h>
  
 -
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
  char *win32_get_font_dir(const char *font_file)
  {
      wchar_t wdir[MAX_PATH];
@@ -199,7 +197,7 @@ index e165fea..c508005 100644
      return file_get_data_home();
  }
  
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
  char *file_get_data_home(void)
  {
      wchar_t wdir[MAX_PATH];
@@ -214,7 +212,7 @@ index e165fea..c508005 100644
      return file_get_data_home();
  }
  
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
  const char *file_get_config_system(const char *dir)
  {
      static char *appdir = NULL;
@@ -232,7 +230,7 @@ index 6155ad6..fd3fa20 100644
          return NULL;
      }
  
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
  #if (_WIN32_WINNT < _WIN32_WINNT_WIN8)
      if (GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")),
                         "SetDefaultDllDirectories") != NULL)
@@ -250,7 +248,7 @@ index 6155ad6..fd3fa20 100644
          HMODULE hModule;
          wchar_t wpath[MAX_PATH];
  
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
          if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                                (LPCTSTR)&dl_get_path, &hModule)) {
@@ -268,7 +266,7 @@ index 6155ad6..fd3fa20 100644
          }
  
          if (lib_path) {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
              /* cut library name from path */
              char *p = strrchr(lib_path, PATH_SEPARATOR);
              if (p) {
@@ -286,7 +284,7 @@ index 883b35c..7f48981 100644
  #include <inttypes.h>
  #include <string.h>
  
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++#ifdef _WIN_STORE
 +#define getenv(x) NULL
 +#endif
  
@@ -296,7 +294,7 @@ index 883b35c..7f48981 100644
      if (!bd->disc_info.bdj_handled) {
          if (!bd->disc || bd->disc_info.bdj_detected) {
  
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
              /* Check if jvm + jar can be loaded ? */
              switch (bdj_jvm_available(&bd->bdjstorage)) {
              case 2: bd->disc_info.bdj_handled = 1;
@@ -307,7 +305,7 @@ index 883b35c..7f48981 100644
 +#else
 +            bd->disc_info.bdj_handled = 0;
 +            bd->disc_info.libjvm_detected = 0;
-+#endif // WINAPI_PARTITION_DESKTOP
++#endif // !_WIN_STORE
          }
      }
  }
@@ -315,7 +313,7 @@ index 883b35c..7f48981 100644
  
  static int _start_bdj(BLURAY *bd, unsigned title)
  {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
      if (bd->bdjava == NULL) {
          const char *root = disc_root(bd->disc);
          bd->bdjava = bdj_open(root, bd, bd->disc_info.bdj_disc_id, &bd->bdjstorage);
@@ -331,7 +329,7 @@ index 883b35c..7f48981 100644
  static int _bdj_event(BLURAY *bd, unsigned ev, unsigned param)
  {
      if (bd->bdjava != NULL) {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
          return bdj_process_event(bd->bdjava, ev, param);
 +#endif
      }
@@ -341,7 +339,7 @@ index 883b35c..7f48981 100644
  static void _stop_bdj(BLURAY *bd)
  {
      if (bd->bdjava != NULL) {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
          bdj_process_event(bd->bdjava, BDJ_EVENT_STOP, 0);
 +#endif
          _queue_event(bd, BD_EVENT_STILL, 0);
@@ -351,7 +349,7 @@ index 883b35c..7f48981 100644
  static void _close_bdj(BLURAY *bd)
  {
      if (bd->bdjava != NULL) {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
          bdj_close(bd->bdjava);
 +#endif
          bd->bdjava = NULL;
@@ -361,7 +359,7 @@ index 883b35c..7f48981 100644
  
      event_queue_destroy(&bd->event_queue);
      array_free((void**)&bd->titles);
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
      bdj_storage_cleanup(&bd->bdjstorage);
 -
 +#endif
@@ -372,7 +370,7 @@ index 883b35c..7f48981 100644
  
  struct bdjo_data *bd_read_bdjo(const char *bdjo_file)
  {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
      return bdjo_parse(bdjo_file);
 +#else
 +    return NULL;
@@ -381,7 +379,7 @@ index 883b35c..7f48981 100644
  
  void bd_free_bdjo(struct bdjo_data *obj)
  {
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
++#ifndef _WIN_STORE
      bdjo_free(&obj);
 +#endif
  }
@@ -393,7 +391,7 @@ index 5896a35..a83fb87 100644
  #include <stdlib.h>
  #include <string.h>
  
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++#ifdef _WIN_STORE
 +#define getenv(x) NULL
 +#endif
  
@@ -407,7 +405,7 @@ index a4866b8..ace7657 100644
  #include <stdlib.h>
  #include <string.h>
  
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++#ifdef _WIN_STORE
 +#define getenv(x) NULL
 +#endif
  
@@ -421,44 +419,23 @@ index 6480872..f2ec5f0 100644
  #include <stdarg.h>
  #include <string.h>
  
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++#ifdef _WIN_STORE
 +#define getenv(x) NULL
 +#endif
 +
  uint32_t            debug_mask = (uint32_t)-1; /* set all bits to make sure bd_debug() is called for initialization */
  static BD_LOG_FUNC  log_func   = NULL;
  
-diff --git a/src/util/time.c b/src/util/time.c
-index e0480c5..2990fc8 100644
---- a/src/util/time.c
-+++ b/src/util/time.c
-@@ -41,11 +41,16 @@ static uint64_t _bd_get_scr_impl(void)
-     DWORD_PTR mask;
-     LARGE_INTEGER frequency, counter;
- 
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
-+    // SetThreadAffinityMask is available on UWP since SDK 10.0.16299
-     thread = GetCurrentThread();
-     mask = SetThreadAffinityMask(thread, 1);
-+#endif
-     QueryPerformanceFrequency(&frequency);
-     QueryPerformanceCounter(&counter);
-+#if !defined(WINAPI_FAMILY) || (WINAPI_FAMILY != WINAPI_FAMILY_APP)
-     SetThreadAffinityMask(thread, mask);
-+#endif
- 
-     return (uint64_t)(counter.QuadPart * 1000.0 / frequency.QuadPart) * 90;
- }
 diff --git a/src/uwpapi.cpp b/src/uwpapi.cpp
 new file mode 100644
 index 0000000..6161f71
 --- /dev/null
 +++ b/src/uwpapi.cpp
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,44 @@
 +
 +#include <windows.h>
 +
-+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++#ifdef _WIN_STORE
 +using namespace Platform;
 +using namespace Windows::ApplicationModel;
 +
@@ -478,7 +455,7 @@ index 0000000..6161f71
 +    }
 +  }
 +
-+  char *file_get_data_home(void)
++  char *file_get_data_home(void) // caller will free buffer
 +  {
 +    auto localFolder = Windows::Storage::ApplicationData::Current->LocalFolder;
 +    int len = WideCharToMultiByte(CP_UTF8, 0, localFolder->Path->Data(), -1, NULL, 0, NULL, NULL);
@@ -498,7 +475,7 @@ index 0000000..6161f71
 +  }
 +}
 +#endif
-\ No newline at end of file
++
 -- 
 2.13.2.windows.1
 
