@@ -308,18 +308,21 @@ diff --git a/map.c b/map.c
 index 9d4751e..bf1ec87 100644
 --- a/map.c
 +++ b/map.c
-@@ -64,6 +64,15 @@ PyImaging_MapperNew(const char* filename, int readonly)
+@@ -64,6 +64,18 @@ PyImaging_MapperNew(const char* filename, int readonly)
      mapper->hMap  = (HANDLE)-1;
  
      /* FIXME: currently supports readonly mappings only */
 +#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
++    wchar_t* nameW = (wchar_t*)malloc(strlen(filename)+1);
++    mbstowcs(nameW, filename, strlen(filename));
 +    mapper->hFile = CreateFile2(
-+        filename,
++        nameW,
 +        GENERIC_READ,
 +        FILE_SHARE_READ,
 +        OPEN_EXISTING,
 +        NULL
 +        );
++    free(nameW);
 +#else
      mapper->hFile = CreateFile(
          filename,
@@ -332,12 +335,14 @@ index 9d4751e..bf1ec87 100644
      if (mapper->hFile == (HANDLE)-1) {
          PyErr_SetString(PyExc_IOError, "cannot open file");
          Py_DECREF(mapper);
-@@ -93,7 +103,7 @@ PyImaging_MapperNew(const char* filename, int readonly)
+@@ -93,7 +103,9 @@ PyImaging_MapperNew(const char* filename, int readonly)
          FILE_MAP_READ,
          0, 0, 0);
  
 -    mapper->size = GetFileSize(mapper->hFile, 0);
-+    mapper->size = GetFileSizeEx(mapper->hFile, 0);
++    LARGE_INTEGER apiSize;
++    GetFileSizeEx(mapper->hFile, &apiSize);
++    mapper->size = apiSize.LowPart;
  #endif
  
      return mapper;
