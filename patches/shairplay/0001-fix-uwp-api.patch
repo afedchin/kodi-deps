@@ -36,7 +36,7 @@ diff --git a/src/lib/memalign.h b/src/lib/memalign.h
 index 33aafb6..73cd727 100644
 --- a/src/lib/memalign.h
 +++ b/src/lib/memalign.h
-@@ -22,7 +22,15 @@
+@@ -22,7 +22,11 @@
  	GetSystemInfo(&si);\
  	ret = si.dwPageSize;\
  } while(0)
