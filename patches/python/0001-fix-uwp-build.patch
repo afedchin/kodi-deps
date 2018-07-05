@@ -1111,7 +1111,7 @@ index 5532c44..2c5a0db 100644
          /* Create another mapping object and remap the file view */
 +#ifdef _UNICODE
 +        wchar_t _tagname[2048];
-+        MultiByteToWideChar(CP_ACP, 0, self->tagname, strlen(self->tagname), _tagname, (sizeof _tagname / sizeof _tagname[0]));
++        MultiByteToWideChar(CP_ACP, 0, self->tagname, -1, _tagname, (sizeof _tagname / sizeof _tagname[0]));
 +#else
 +        char* _tagname = self->tagname;
 +#endif
@@ -1153,7 +1153,7 @@ index 5532c44..2c5a0db 100644
         For anonymous maps, we have to pass the size explicitly. */
 +#ifdef _UNICODE
 +    wchar_t _tagname[2048];
-+    MultiByteToWideChar(CP_ACP, 0, m_obj->tagname, strlen(m_obj->tagname), _tagname, (sizeof _tagname / sizeof _tagname[0]));
++    MultiByteToWideChar(CP_ACP, 0, m_obj->tagname, -1, _tagname, (sizeof _tagname / sizeof _tagname[0]));
 +#else
 +    char* _tagname = m_obj->tagname;
 +#endif
@@ -1481,15 +1481,16 @@ index 20c295b..48b93e1 100644
          Py_END_ALLOW_THREADS
          if (hFile == INVALID_HANDLE_VALUE)
              return win32_error_unicode("utime", wpath);
-@@ -2985,9 +3072,23 @@ posix_utime(PyObject *self, PyObject *args)
+@@ -2985,9 +3072,24 @@ posix_utime(PyObject *self, PyObject *args)
                                Py_FileSystemDefaultEncoding, &apath, &arg))
              return NULL;
          Py_BEGIN_ALLOW_THREADS
 +#ifdef MS_STORE
-+        wpath = (wchar_t*)malloc(strlen(apath) * 2 + 1);
++        size_t _length = strlen(apath) + 1;
++        wpath = (wchar_t*)malloc(_length * 2);
 +        if (wpath)
 +        {
-+          MultiByteToWideChar(CP_ACP, 0, apath, -1, wpath, (int)strlen(apath));
++          MultiByteToWideChar(CP_ACP, 0, apath, -1, wpath, _length);
 +          CREATEFILE2_EXTENDED_PARAMETERS extParams;
 +          memset(&extParams, 0, sizeof extParams);
 +          extParams.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
