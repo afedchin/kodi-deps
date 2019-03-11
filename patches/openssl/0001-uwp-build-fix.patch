@@ -133,58 +133,6 @@ index 633e605..744d1a9 100644
  	call:setEnv
  	goto :eof
  
-@@ -211,14 +191,10 @@ exit /b
- 	call:setVar _VS15VC VisualStudio15VC
- 	call:setVar _WKITS10 WindowsKits10.0
- 	call:setVar _WKITS10VER WindowsKits10Version
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\3.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\2.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\1.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\5.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\4.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\3.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\2.0.0.0\
--	set LIBPATH=%LIBPATH%;%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\1.0.0.0\
-+	for /D %%f in ("%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.foundationcontract\*") do set LIBPATH=%LIBPATH%;%%f\
-+	for /D %%f in ("%_WKITS10%\references\%_WKITS10VER%.0\windows.foundation.universalapicontract\*") do set LIBPATH=%LIBPATH%;%%f\
-+	for /D %%f in ("%_WKITS10%\references\windows.foundation.foundationcontract\*") do set LIBPATH=%LIBPATH%;%%f\
-+	for /D %%f in ("%_WKITS10%\references\windows.foundation.universalapicontract\*") do set LIBPATH=%LIBPATH%;%%f\	
- 	goto :eof
- 
- :end
-diff --git a/ms/winrtdef.h b/ms/winrtdef.h
-index 10235dd..8f07730 100644
---- a/ms/winrtdef.h
-+++ b/ms/winrtdef.h
-@@ -20,6 +20,8 @@
- # ifdef setenv
- #  undef setenv
- # endif
-+#define getenv winrt_getenv
-+#define setenv winrt_setenv
- 
- /*
- # ifdef FindFirstFile
-@@ -53,7 +55,7 @@ int winrt_GetTickCount(void);
- void* LoadLibraryA(
- 	const char* lpFileName
-   );
--char* getenv(const char* varname);
-+char* winrt_getenv(const char* varname);
- int _kbhit();
- 
- int MoveFile(
-@@ -57,8 +57,8 @@ char* winrt_getenv(const char* varname);
- int _kbhit();
- 
- int MoveFile(
--	const wchar_t* lpExistingFileName,
--	const wchar_t* lpNewFileName
-+	_In_  LPCTSTR lpExistingFileName,
-+	_In_  LPCTSTR lpNewFileName
- 	);
- 
- HMODULE
 diff --git a/engines/e_aep.c b/engines/e_aep.c
 index 66849f3..fbebdbd 100644
 --- a/engines/e_aep.c
