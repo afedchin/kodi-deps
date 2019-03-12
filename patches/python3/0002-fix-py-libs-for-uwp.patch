@@ -1,0 +1,765 @@
+diff --git a/Lib/_osx_support.py b/Lib/_osx_support.py
+index db6674e..3c7427c 100644
+--- a/Lib/_osx_support.py
++++ b/Lib/_osx_support.py
+@@ -38,7 +38,7 @@ def _find_executable(executable, path=None):
+     paths = path.split(os.pathsep)
+     base, ext = os.path.splitext(executable)
+ 
+-    if (sys.platform == 'win32') and (ext != '.exe'):
++    if (sys.platform.startswith('win')) and (ext != '.exe'):
+         executable = executable + '.exe'
+ 
+     if not os.path.isfile(executable):
+diff --git a/Lib/_pyio.py b/Lib/_pyio.py
+index f0d4f4e..cb7d492 100644
+--- a/Lib/_pyio.py
++++ b/Lib/_pyio.py
+@@ -10,7 +10,7 @@ import stat
+ import sys
+ # Import _thread instead of threading to reduce startup cost
+ from _thread import allocate_lock as Lock
+-if sys.platform in {'win32', 'cygwin'}:
++if sys.platform in {'win10', 'win32', 'cygwin'}:
+     from msvcrt import setmode as _setmode
+ else:
+     _setmode = None
+diff --git a/Lib/asyncio/__init__.py b/Lib/asyncio/__init__.py
+index 2685902..d0e95e5 100644
+--- a/Lib/asyncio/__init__.py
++++ b/Lib/asyncio/__init__.py
+@@ -35,7 +35,7 @@ __all__ = (base_events.__all__ +
+            tasks.__all__ +
+            transports.__all__)
+ 
+-if sys.platform == 'win32':  # pragma: no cover
++if sys.platform.startswith('win'):  # pragma: no cover
+     from .windows_events import *
+     __all__ += windows_events.__all__
+ else:
+diff --git a/Lib/asyncio/unix_events.py b/Lib/asyncio/unix_events.py
+index 639300f..320e621 100644
+--- a/Lib/asyncio/unix_events.py
++++ b/Lib/asyncio/unix_events.py
+@@ -32,7 +32,7 @@ __all__ = (
+ )
+ 
+ 
+-if sys.platform == 'win32':  # pragma: no cover
++if sys.platform.startswith('win'):  # pragma: no cover
+     raise ImportError('Signals are not really supported on Windows')
+ 
+ 
+diff --git a/Lib/asyncio/windows_utils.py b/Lib/asyncio/windows_utils.py
+index 9e22f6e..95a6ef5 100644
+--- a/Lib/asyncio/windows_utils.py
++++ b/Lib/asyncio/windows_utils.py
+@@ -2,7 +2,7 @@
+ 
+ import sys
+ 
+-if sys.platform != 'win32':  # pragma: no cover
++if not sys.platform.startswith('win'):  # pragma: no cover
+     raise ImportError('win32 only')
+ 
+ import _winapi
+diff --git a/Lib/ctypes/__init__.py b/Lib/ctypes/__init__.py
+index 6146773..7c22994 100644
+--- a/Lib/ctypes/__init__.py
++++ b/Lib/ctypes/__init__.py
+@@ -448,7 +448,7 @@ if _os.name == "nt":
+     windll = LibraryLoader(WinDLL)
+     oledll = LibraryLoader(OleDLL)
+ 
+-    GetLastError = windll.kernel32.GetLastError
++    from _ctypes import GetLastError
+     from _ctypes import get_last_error, set_last_error
+ 
+     def WinError(code=None, descr=None):
+diff --git a/Lib/distutils/archive_util.py b/Lib/distutils/archive_util.py
+index b002dc3..812a6dd 100644
+--- a/Lib/distutils/archive_util.py
++++ b/Lib/distutils/archive_util.py
+@@ -115,7 +115,7 @@ def make_tarball(base_name, base_dir, compress="gzip", verbose=0, dry_run=0,
+         warn("'compress' will be deprecated.", PendingDeprecationWarning)
+         # the option varies depending on the platform
+         compressed_name = archive_name + compress_ext[compress]
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             cmd = [compress, archive_name, compressed_name]
+         else:
+             cmd = [compress, '-f', archive_name]
+diff --git a/Lib/distutils/msvc9compiler.py b/Lib/distutils/msvc9compiler.py
+index 4c0036a..f5e5c7c 100644
+--- a/Lib/distutils/msvc9compiler.py
++++ b/Lib/distutils/msvc9compiler.py
+@@ -36,7 +36,7 @@ HKEYS = (winreg.HKEY_USERS,
+          winreg.HKEY_LOCAL_MACHINE,
+          winreg.HKEY_CLASSES_ROOT)
+ 
+-NATIVE_WIN64 = (sys.platform == 'win32' and sys.maxsize > 2**32)
++NATIVE_WIN64 = (sys.platform.startswith('win') and sys.maxsize > 2**32)
+ if NATIVE_WIN64:
+     # Visual C++ is a 32-bit application, so we need to look in
+     # the corresponding registry branch, if we're running a
+diff --git a/Lib/distutils/spawn.py b/Lib/distutils/spawn.py
+index 5387688..029106b 100644
+--- a/Lib/distutils/spawn.py
++++ b/Lib/distutils/spawn.py
+@@ -178,7 +178,7 @@ def find_executable(executable, path=None):
+     paths = path.split(os.pathsep)
+     base, ext = os.path.splitext(executable)
+ 
+-    if (sys.platform == 'win32') and (ext != '.exe'):
++    if (sys.platform.startswith('win')) and (ext != '.exe'):
+         executable = executable + '.exe'
+ 
+     if not os.path.isfile(executable):
+diff --git a/Lib/encodings/__init__.py b/Lib/encodings/__init__.py
+index 025b7a8..a781652 100644
+--- a/Lib/encodings/__init__.py
++++ b/Lib/encodings/__init__.py
+@@ -155,7 +155,7 @@ def search_function(encoding):
+ # Register the search_function in the Python codec registry
+ codecs.register(search_function)
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     def _alias_mbcs(encoding):
+         try:
+             import _winapi
+diff --git a/Lib/idlelib/iomenu.py b/Lib/idlelib/iomenu.py
+index f5bced5..f84e7dc 100644
+--- a/Lib/idlelib/iomenu.py
++++ b/Lib/idlelib/iomenu.py
+@@ -25,7 +25,7 @@ else:
+         pass
+ 
+     locale_decode = 'ascii'
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         # On Windows, we could use "mbcs". However, to give the user
+         # a portable encoding name, we need to find the code page
+         try:
+diff --git a/Lib/idlelib/pyshell.py b/Lib/idlelib/pyshell.py
+index 81a97ef..7f7c943 100644
+--- a/Lib/idlelib/pyshell.py
++++ b/Lib/idlelib/pyshell.py
+@@ -11,7 +11,7 @@ except ImportError:
+ 
+ # Valid arguments for the ...Awareness call below are defined in the following.
+ # https://msdn.microsoft.com/en-us/library/windows/desktop/dn280512(v=vs.85).aspx
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     try:
+         import ctypes
+         PROCESS_SYSTEM_DPI_AWARE = 1
+diff --git a/Lib/idlelib/zoomheight.py b/Lib/idlelib/zoomheight.py
+index 73f1df0..00f8170 100644
+--- a/Lib/idlelib/zoomheight.py
++++ b/Lib/idlelib/zoomheight.py
+@@ -25,7 +25,7 @@ def zoom_height(top):
+         return
+     width, height, x, y = map(int, m.groups())
+     newheight = top.winfo_screenheight()
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         newy = 0
+         newheight = newheight - 72
+ 
+diff --git a/Lib/locale.py b/Lib/locale.py
+index f3d3973..cb56e29 100644
+--- a/Lib/locale.py
++++ b/Lib/locale.py
+@@ -547,7 +547,7 @@ def getdefaultlocale(envvars=('LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE')):
+         pass
+     else:
+         # make sure the code/encoding values are valid
+-        if sys.platform == "win32" and code and code[:2] == "0x":
++        if sys.platform.startswith("win") and code and code[:2] == "0x":
+             # map windows language identifier to language name
+             code = windows_locale.get(int(code, 0))
+         # ...add other platform-specific processing here, if
+diff --git a/Lib/multiprocessing/connection.py b/Lib/multiprocessing/connection.py
+index 1f3ea50..0de0670 100644
+--- a/Lib/multiprocessing/connection.py
++++ b/Lib/multiprocessing/connection.py
+@@ -30,7 +30,7 @@ try:
+     import _winapi
+     from _winapi import WAIT_OBJECT_0, WAIT_ABANDONED_0, WAIT_TIMEOUT, INFINITE
+ except ImportError:
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         raise
+     _winapi = None
+ 
+@@ -51,7 +51,7 @@ if hasattr(socket, 'AF_UNIX'):
+     default_family = 'AF_UNIX'
+     families += ['AF_UNIX']
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     default_family = 'AF_PIPE'
+     families += ['AF_PIPE']
+ 
+@@ -84,10 +84,10 @@ def _validate_family(family):
+     '''
+     Checks if the family is valid for the current environment.
+     '''
+-    if sys.platform != 'win32' and family == 'AF_PIPE':
++    if not sys.platform.startswith('win') and family == 'AF_PIPE':
+         raise ValueError('Family %s is not recognized.' % family)
+ 
+-    if sys.platform == 'win32' and family == 'AF_UNIX':
++    if sys.platform.startswith('win') and family == 'AF_UNIX':
+         # double check
+         if not hasattr(socket, family):
+             raise ValueError('Family %s is not recognized.' % family)
+@@ -501,7 +501,7 @@ def Client(address, family=None, authkey=None):
+     return c
+ 
+ 
+-if sys.platform != 'win32':
++if not sys.platform.startswith('win'):
+ 
+     def Pipe(duplex=True):
+         '''
+@@ -623,7 +623,7 @@ def SocketClient(address):
+ # Definitions for connections based on named pipes
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+ 
+     class PipeListener(object):
+         '''
+@@ -789,7 +789,7 @@ def XmlClient(*args, **kwds):
+ # Wait
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+ 
+     def _exhaustive_wait(handles, timeout):
+         # Return ALL handles which are currently signalled.  (Only
+@@ -930,7 +930,7 @@ else:
+ # Make connection and socket objects sharable if possible
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     def reduce_connection(conn):
+         handle = conn.fileno()
+         with socket.fromfd(handle, socket.AF_INET, socket.SOCK_STREAM) as s:
+diff --git a/Lib/multiprocessing/context.py b/Lib/multiprocessing/context.py
+index c98ee43..26eab04 100644
+--- a/Lib/multiprocessing/context.py
++++ b/Lib/multiprocessing/context.py
+@@ -144,7 +144,7 @@ class BaseContext(object):
+         '''Check whether this is a fake forked process in a frozen executable.
+         If so then run code specified by commandline and exit.
+         '''
+-        if sys.platform == 'win32' and getattr(sys, 'frozen', False):
++        if sys.platform.startswith('win') and getattr(sys, 'frozen', False):
+             from .spawn import freeze_support
+             freeze_support()
+ 
+@@ -253,7 +253,7 @@ class DefaultContext(BaseContext):
+         return self._actual_context._name
+ 
+     def get_all_start_methods(self):
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             return ['spawn']
+         else:
+             if reduction.HAVE_SEND_HANDLE:
+@@ -267,7 +267,7 @@ DefaultContext.__all__ = [x for x in dir(DefaultContext) if x[0] != '_']
+ # Context types for fixed start method
+ #
+ 
+-if sys.platform != 'win32':
++if not sys.platform.startswith('win'):
+ 
+     class ForkProcess(process.BaseProcess):
+         _start_method = 'fork'
+diff --git a/Lib/multiprocessing/heap.py b/Lib/multiprocessing/heap.py
+index 566173a..eb07848 100644
+--- a/Lib/multiprocessing/heap.py
++++ b/Lib/multiprocessing/heap.py
+@@ -23,7 +23,7 @@ __all__ = ['BufferWrapper']
+ # Inheritable class which wraps an mmap, and from which blocks can be allocated
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+ 
+     import _winapi
+ 
+diff --git a/Lib/multiprocessing/popen_spawn_win32.py b/Lib/multiprocessing/popen_spawn_win32.py
+index 3e42e9c..40589e9 100644
+--- a/Lib/multiprocessing/popen_spawn_win32.py
++++ b/Lib/multiprocessing/popen_spawn_win32.py
+@@ -15,7 +15,7 @@ __all__ = ['Popen']
+ #
+ 
+ TERMINATE = 0x10000
+-WINEXE = (sys.platform == 'win32' and getattr(sys, 'frozen', False))
++WINEXE = (sys.platform.startswith('win') and getattr(sys, 'frozen', False))
+ WINSERVICE = sys.executable.lower().endswith("pythonservice.exe")
+ 
+ #
+diff --git a/Lib/multiprocessing/queues.py b/Lib/multiprocessing/queues.py
+index 88f7d26..f4a4e27 100644
+--- a/Lib/multiprocessing/queues.py
++++ b/Lib/multiprocessing/queues.py
+@@ -41,7 +41,7 @@ class Queue(object):
+         self._reader, self._writer = connection.Pipe(duplex=False)
+         self._rlock = ctx.Lock()
+         self._opid = os.getpid()
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             self._wlock = None
+         else:
+             self._wlock = ctx.Lock()
+@@ -51,7 +51,7 @@ class Queue(object):
+ 
+         self._after_fork()
+ 
+-        if sys.platform != 'win32':
++        if not sys.platform.startswith('win'):
+             register_after_fork(self, Queue._after_fork)
+ 
+     def __getstate__(self):
+@@ -210,7 +210,7 @@ class Queue(object):
+         nwait = notempty.wait
+         bpopleft = buffer.popleft
+         sentinel = _sentinel
+-        if sys.platform != 'win32':
++        if not sys.platform.startswith('win'):
+             wacquire = writelock.acquire
+             wrelease = writelock.release
+         else:
+@@ -331,7 +331,7 @@ class SimpleQueue(object):
+         self._reader, self._writer = connection.Pipe(duplex=False)
+         self._rlock = ctx.Lock()
+         self._poll = self._reader.poll
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             self._wlock = None
+         else:
+             self._wlock = ctx.Lock()
+diff --git a/Lib/multiprocessing/reduction.py b/Lib/multiprocessing/reduction.py
+index 0f54325..078ea64 100644
+--- a/Lib/multiprocessing/reduction.py
++++ b/Lib/multiprocessing/reduction.py
+@@ -21,7 +21,7 @@ from . import context
+ __all__ = ['send_handle', 'recv_handle', 'ForkingPickler', 'register', 'dump']
+ 
+ 
+-HAVE_SEND_HANDLE = (sys.platform == 'win32' or
++HAVE_SEND_HANDLE = (sys.platform.startswith('win') or
+                     (hasattr(socket, 'CMSG_LEN') and
+                      hasattr(socket, 'SCM_RIGHTS') and
+                      hasattr(socket.socket, 'sendmsg')))
+@@ -63,7 +63,7 @@ def dump(obj, file, protocol=None):
+ # Platform specific definitions
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     # Windows
+     __all__ += ['DupHandle', 'duplicate', 'steal_handle']
+     import _winapi
+@@ -226,7 +226,7 @@ register(functools.partial, _reduce_partial)
+ # Make sockets picklable
+ #
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     def _reduce_socket(s):
+         from .resource_sharer import DupSocket
+         return _rebuild_socket, (DupSocket(s),)
+@@ -254,7 +254,7 @@ class AbstractReducer(metaclass=ABCMeta):
+     send_handle = send_handle
+     recv_handle = recv_handle
+ 
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         steal_handle = steal_handle
+         duplicate = duplicate
+         DupHandle = DupHandle
+diff --git a/Lib/multiprocessing/resource_sharer.py b/Lib/multiprocessing/resource_sharer.py
+index 6d99da1..5f565d2 100644
+--- a/Lib/multiprocessing/resource_sharer.py
++++ b/Lib/multiprocessing/resource_sharer.py
+@@ -21,7 +21,7 @@ from . import util
+ __all__ = ['stop']
+ 
+ 
+-if sys.platform == 'win32':
++if sys.platform.startswith('win'):
+     __all__ += ['DupSocket']
+ 
+     class DupSocket(object):
+diff --git a/Lib/multiprocessing/spawn.py b/Lib/multiprocessing/spawn.py
+index 1f4f3f4..7bdf48d 100644
+--- a/Lib/multiprocessing/spawn.py
++++ b/Lib/multiprocessing/spawn.py
+@@ -26,11 +26,11 @@ __all__ = ['_main', 'freeze_support', 'set_executable', 'get_executable',
+ # People embedding Python want to modify it.
+ #
+ 
+-if sys.platform != 'win32':
++if not sys.platform.startswith('win'):
+     WINEXE = False
+     WINSERVICE = False
+ else:
+-    WINEXE = (sys.platform == 'win32' and getattr(sys, 'frozen', False))
++    WINEXE = (sys.platform.startswith('win') and getattr(sys, 'frozen', False))
+     WINSERVICE = sys.executable.lower().endswith("pythonservice.exe")
+ 
+ if WINSERVICE:
+@@ -94,7 +94,7 @@ def spawn_main(pipe_handle, parent_pid=None, tracker_fd=None):
+     Run code specified by data received over pipe
+     '''
+     assert is_forking(sys.argv), "Not forking"
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         import msvcrt
+         new_handle = reduction.steal_handle(parent_pid, pipe_handle)
+         fd = msvcrt.open_osfhandle(new_handle, os.O_RDONLY)
+@@ -172,7 +172,7 @@ def get_preparation_data(name):
+     main_mod_name = getattr(main_module.__spec__, "name", None)
+     if main_mod_name is not None:
+         d['init_main_from_name'] = main_mod_name
+-    elif sys.platform != 'win32' or (not WINEXE and not WINSERVICE):
++    elif not sys.platform.startswith('win') or (not WINEXE and not WINSERVICE):
+         main_path = getattr(main_module, '__file__', None)
+         if main_path is not None:
+             if (not os.path.isabs(main_path) and
+diff --git a/Lib/multiprocessing/synchronize.py b/Lib/multiprocessing/synchronize.py
+index 5137c49..3990e6e 100644
+--- a/Lib/multiprocessing/synchronize.py
++++ b/Lib/multiprocessing/synchronize.py
+@@ -51,7 +51,7 @@ class SemLock(object):
+         if ctx is None:
+             ctx = context._default_context.get_context()
+         name = ctx.get_start_method()
+-        unlink_now = sys.platform == 'win32' or name == 'fork'
++        unlink_now = sys.platform.startswith('win') or name == 'fork'
+         for i in range(100):
+             try:
+                 sl = self._semlock = _multiprocessing.SemLock(
+@@ -67,7 +67,7 @@ class SemLock(object):
+         util.debug('created semlock with handle %s' % sl.handle)
+         self._make_methods()
+ 
+-        if sys.platform != 'win32':
++        if not sys.platform.startswith('win'):
+             def _after_fork(obj):
+                 obj._semlock._after_fork()
+             util.register_after_fork(self, _after_fork)
+@@ -100,7 +100,7 @@ class SemLock(object):
+     def __getstate__(self):
+         context.assert_spawning(self)
+         sl = self._semlock
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             h = context.get_spawning_popen().duplicate_for_child(sl.handle)
+         else:
+             h = sl.handle
+diff --git a/Lib/platform.py b/Lib/platform.py
+index 0c6fc03..3e010af 100644
+--- a/Lib/platform.py
++++ b/Lib/platform.py
+@@ -125,7 +125,7 @@ try:
+ except AttributeError:
+     # os.devnull was added in Python 2.4, so emulate it for earlier
+     # Python versions
+-    if sys.platform in ('dos', 'win32', 'win16'):
++    if sys.platform in ('dos', 'win32', 'win16', 'win10'):
+         # Use the old CP/M NUL as device name
+         DEV_NULL = 'NUL'
+     else:
+@@ -454,7 +454,7 @@ _ver_output = re.compile(r'(?:([\w ]+) ([\w.]+) '
+ 
+ def _syscmd_ver(system='', release='', version='',
+ 
+-               supported_platforms=('win32', 'win16', 'dos')):
++               supported_platforms=('win10', 'win32', 'win16', 'dos')):
+ 
+     """ Tries to figure out the OS version used and returns
+         a tuple (system, release, version).
+@@ -535,10 +535,6 @@ def win32_ver(release='', version='', csd='', ptype=''):
+         from sys import getwindowsversion
+     except ImportError:
+         return release, version, csd, ptype
+-    try:
+-        from winreg import OpenKeyEx, QueryValueEx, CloseKey, HKEY_LOCAL_MACHINE
+-    except ImportError:
+-        from _winreg import OpenKeyEx, QueryValueEx, CloseKey, HKEY_LOCAL_MACHINE
+ 
+     winver = getwindowsversion()
+     maj, min, build = winver.platform_version or winver[:3]
+@@ -566,6 +562,10 @@ def win32_ver(release='', version='', csd='', ptype=''):
+ 
+     key = None
+     try:
++        try:
++            from winreg import OpenKeyEx, QueryValueEx, CloseKey, HKEY_LOCAL_MACHINE
++        except ImportError:
++            from _winreg import OpenKeyEx, QueryValueEx, CloseKey, HKEY_LOCAL_MACHINE
+         key = OpenKeyEx(HKEY_LOCAL_MACHINE,
+                         r'SOFTWARE\Microsoft\Windows NT\CurrentVersion')
+         ptype = QueryValueEx(key, 'CurrentType')[0]
+@@ -711,7 +711,7 @@ def system_alias(system, release, version):
+         else:
+             version = '64bit'
+ 
+-    elif system in ('win32', 'win16'):
++    elif system in ('win10', 'win32', 'win16'):
+         # In case one of the other tricks
+         system = 'Windows'
+ 
+@@ -781,7 +781,7 @@ def _syscmd_uname(option, default=''):
+ 
+     """ Interface to the system's uname command.
+     """
+-    if sys.platform in ('dos', 'win32', 'win16'):
++    if sys.platform in ('dos', 'win10', 'win32', 'win16'):
+         # XXX Others too ?
+         return default
+     try:
+@@ -804,7 +804,7 @@ def _syscmd_file(target, default=''):
+         default in case the command should fail.
+ 
+     """
+-    if sys.platform in ('dos', 'win32', 'win16'):
++    if sys.platform in ('dos', 'win10', 'win32', 'win16'):
+         # XXX Others too ?
+         return default
+     target = _follow_symlinks(target)
+@@ -826,6 +826,7 @@ def _syscmd_file(target, default=''):
+ # Default values for architecture; non-empty strings override the
+ # defaults given as parameters
+ _default_architecture = {
++    'win10': ('', 'WindowsPE'),
+     'win32': ('', 'WindowsPE'),
+     'win16': ('', 'Windows'),
+     'dos': ('', 'MSDOS'),
+@@ -959,7 +960,7 @@ def uname():
+         use_syscmd_ver = 1
+ 
+         # Try win32_ver() on win32 platforms
+-        if system == 'win32':
++        if system == 'win32' or system == 'win10':
+             release, version, csd, ptype = win32_ver()
+             if release and version:
+                 use_syscmd_ver = 0
+@@ -997,9 +998,9 @@ def uname():
+ 
+         # In case we still don't know anything useful, we'll try to
+         # help ourselves
+-        if system in ('win32', 'win16'):
++        if system in ('win10', 'win32', 'win16'):
+             if not version:
+-                if system == 'win32':
++                if system == 'win32' or system == 'win10':
+                     version = '32bit'
+                 else:
+                     version = '16bit'
+diff --git a/Lib/pydoc.py b/Lib/pydoc.py
+index 09992cd..cf36607 100644
+--- a/Lib/pydoc.py
++++ b/Lib/pydoc.py
+@@ -1458,7 +1458,7 @@ def getpager():
+         return plainpager
+     use_pager = os.environ.get('MANPAGER') or os.environ.get('PAGER')
+     if use_pager:
+-        if sys.platform == 'win32': # pipes completely broken in Windows
++        if sys.platform.startswith('win'): # pipes completely broken in Windows
+             return lambda text: tempfilepager(plain(text), use_pager)
+         elif os.environ.get('TERM') in ('dumb', 'emacs'):
+             return lambda text: pipepager(plain(text), use_pager)
+@@ -1466,7 +1466,7 @@ def getpager():
+             return lambda text: pipepager(text, use_pager)
+     if os.environ.get('TERM') in ('dumb', 'emacs'):
+         return plainpager
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         return lambda text: tempfilepager(plain(text), 'more <')
+     if hasattr(os, 'system') and os.system('(less) 2>/dev/null') == 0:
+         return lambda text: pipepager(text, 'less')
+diff --git a/Lib/selectors.py b/Lib/selectors.py
+index a9a0801..b173d5c 100644
+--- a/Lib/selectors.py
++++ b/Lib/selectors.py
+@@ -309,7 +309,7 @@ class SelectSelector(_BaseSelectorImpl):
+         self._writers.discard(key.fd)
+         return key
+ 
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         def _select(self, r, w, _, timeout=None):
+             r, w, x = select.select(r, w, w, timeout)
+             return r, w + x, []
+diff --git a/Lib/shutil.py b/Lib/shutil.py
+index f32c66b..4620f39 100644
+--- a/Lib/shutil.py
++++ b/Lib/shutil.py
+@@ -1143,7 +1143,7 @@ def which(cmd, mode=os.F_OK | os.X_OK, path=None):
+         return None
+     path = path.split(os.pathsep)
+ 
+-    if sys.platform == "win32":
++    if sys.platform.startswith('win'):
+         # The current directory takes precedence on Windows.
+         if not os.curdir in path:
+             path.insert(0, os.curdir)
+diff --git a/Lib/ssl.py b/Lib/ssl.py
+index d1d9866..15f2b61 100644
+--- a/Lib/ssl.py
++++ b/Lib/ssl.py
+@@ -165,7 +165,7 @@ class TLSVersion(_IntEnum):
+     MAXIMUM_SUPPORTED = _ssl.PROTO_MAXIMUM_SUPPORTED
+ 
+ 
+-if sys.platform == "win32":
++if sys.platform.startswith('win'):
+     from _ssl import enum_certificates, enum_crls
+ 
+ from socket import socket, AF_INET, SOCK_STREAM, create_connection
+@@ -474,7 +474,7 @@ class SSLContext(_SSLContext):
+     def load_default_certs(self, purpose=Purpose.SERVER_AUTH):
+         if not isinstance(purpose, _ASN1Object):
+             raise TypeError(purpose)
+-        if sys.platform == "win32":
++        if sys.platform.startswith('win'):
+             for storename in self._windows_cert_stores:
+                 self._load_windows_store_certs(storename, purpose)
+         self.set_default_verify_paths()
+diff --git a/Lib/subprocess.py b/Lib/subprocess.py
+index 3c1abb7..f47eb60 100644
+--- a/Lib/subprocess.py
++++ b/Lib/subprocess.py
+@@ -42,7 +42,7 @@ getstatusoutput(...): Runs a command in the shell, waits for it to complete,
+ """
+ 
+ import sys
+-_mswindows = (sys.platform == "win32")
++_mswindows = (sys.platform.startswith('win'))
+ 
+ import io
+ import os
+diff --git a/Lib/telnetlib.py b/Lib/telnetlib.py
+index b9d45b4..c3eda9f 100644
+--- a/Lib/telnetlib.py
++++ b/Lib/telnetlib.py
+@@ -534,7 +534,7 @@ class Telnet:
+ 
+     def interact(self):
+         """Interaction function, emulates a very dumb telnet client."""
+-        if sys.platform == "win32":
++        if sys.platform.startswith('win'):
+             self.mt_interact()
+             return
+         with _TelnetSelector() as selector:
+diff --git a/Lib/test/support/__init__.py b/Lib/test/support/__init__.py
+index 512e354..e6cd2c8 100644
+--- a/Lib/test/support/__init__.py
++++ b/Lib/test/support/__init__.py
+@@ -799,7 +799,7 @@ is_jython = sys.platform.startswith('java')
+ 
+ is_android = hasattr(sys, 'getandroidapilevel')
+ 
+-if sys.platform != 'win32':
++if not sys.platform.startswith('win'):
+     unix_shell = '/system/bin/sh' if is_android else '/bin/sh'
+ else:
+     unix_shell = None
+@@ -2000,7 +2000,7 @@ def _check_docstrings():
+     """Just used to check if docstrings are enabled"""
+ 
+ MISSING_C_DOCSTRINGS = (check_impl_detail() and
+-                        sys.platform != 'win32' and
++                        sys.platform.startswith('win') and
+                         not sysconfig.get_config_var('WITH_DOC_STRINGS'))
+ 
+ HAVE_DOCSTRINGS = (_check_docstrings.__doc__ is not None and
+@@ -2800,7 +2800,7 @@ def fd_count():
+             pass
+ 
+     old_modes = None
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         # bpo-25306, bpo-31009: Call CrtSetReportMode() to not kill the process
+         # on invalid file descriptor if Python is compiled in debug mode
+         try:
+diff --git a/Lib/test/support/script_helper.py b/Lib/test/support/script_helper.py
+index 64b25aa..c472341 100644
+--- a/Lib/test/support/script_helper.py
++++ b/Lib/test/support/script_helper.py
+@@ -105,7 +105,7 @@ def run_python_until_end(*args, **env_vars):
+     # caller is responsible to pass the full environment.
+     if env_vars.pop('__cleanenv', None):
+         env = {}
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             # Windows requires at least the SYSTEMROOT environment variable to
+             # start Python.
+             env['SYSTEMROOT'] = os.environ['SYSTEMROOT']
+diff --git a/Lib/uuid.py b/Lib/uuid.py
+index 26faa1a..2d24f61 100644
+--- a/Lib/uuid.py
++++ b/Lib/uuid.py
+@@ -692,7 +692,7 @@ def getnode(*, getters=None):
+     if _node is not None:
+         return _node
+ 
+-    if sys.platform == 'win32':
++    if sys.platform.startswith('win'):
+         getters = _NODE_GETTERS_WIN32
+     else:
+         getters = _NODE_GETTERS_UNIX
+diff --git a/Lib/venv/__init__.py b/Lib/venv/__init__.py
+index 5438b0d..4a008a7 100644
+--- a/Lib/venv/__init__.py
++++ b/Lib/venv/__init__.py
+@@ -115,7 +115,7 @@ class EnvBuilder:
+         context.executable = executable
+         context.python_dir = dirname
+         context.python_exe = exename
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             binname = 'Scripts'
+             incpath = 'Include'
+             libpath = os.path.join(env_dir, 'Lib', 'site-packages')
+diff --git a/Lib/wsgiref/handlers.py b/Lib/wsgiref/handlers.py
+index f4300b8..c74eb03 100644
+--- a/Lib/wsgiref/handlers.py
++++ b/Lib/wsgiref/handlers.py
+@@ -49,7 +49,7 @@ def read_environ():
+ 
+             # On win32, the os.environ is natively Unicode. Different servers
+             # decode the request bytes using different encodings.
+-            if sys.platform == 'win32':
++            if sys.platform.startswith('win'):
+                 software = os.environ.get('SERVER_SOFTWARE', '').lower()
+ 
+                 # On IIS, the HTTP request will be decoded as UTF-8 as long
+diff --git a/Lib/zipfile.py b/Lib/zipfile.py
+index d2d3b69..89505fd 100644
+--- a/Lib/zipfile.py
++++ b/Lib/zipfile.py
+@@ -361,7 +361,7 @@ class ZipInfo (object):
+         self._compresslevel = None      # Level for the compressor
+         self.comment = b""              # Comment for each file
+         self.extra = b""                # ZIP extra data
+-        if sys.platform == 'win32':
++        if sys.platform.startswith('win'):
+             self.create_system = 0          # System which created ZIP archive
+         else:
+             # Assume everything else is unix-y
+-- 
+2.20.1.windows.1
+
