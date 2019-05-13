@@ -132,19 +132,17 @@ add_dependency_project_package(libiconv 1.15)
 
 ExternalProject_Add(openssl
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	URL https://github.com/Microsoft/openssl/archive/OpenSSL_1_0_2q_WinRT.tar.gz
-	URL_HASH SHA512=a5deb38d8ac3d2dc5cfcefca74ef1b6bb913fb2a205163e26100f8714b567768e2699948d6a2ec3ebdbf8c72bfbf8ccfe0e574a1d20a2a736b64e9d69ca9b719
+	URL https://github.com/openssl/openssl/archive/OpenSSL_1_1_1b.tar.gz
+	URL_HASH SHA512=f09f07226c1ea7d903d65572f6c63e1dd8afbbe4789438572ccae3c31445c30cf353dbf2e7637ab9d1042a2dc221cacdbed6167e881c1a1ad40163f751a33b28
 	PATCH_COMMAND 
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/openssl/0001-uwp-build-fix.patch
-		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/openssl/0002-kodi-ssl-cert-file.patch
-		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/openssl/0003-fix-uwp-configure-unicode.patch
 	INSTALL_COMMAND
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
 )
-add_dependency_project_package(openssl 1.0.2o)
+add_dependency_project_package(openssl 1.1.1b)
 
 ExternalProject_Add(zlib
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads

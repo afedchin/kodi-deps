@@ -1,151 +1,237 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 1af9bef..03484bd 100644
+index 998c0e8..317798c 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -5,25 +5,55 @@ project(openssl VERSION 1.0.2 LANGUAGES C)
- include(CheckSymbolExists) 
- check_symbol_exists(_X86_ "Windows.h" _X86_)
- check_symbol_exists(_AMD64_ "Windows.h" _AMD64_)
-+check_symbol_exists(_ARM_ "Windows.h" _ARM_)
- 
- if(_X86_)
- 	message(STATUS "Win32")
- 	set(OPENSSL_PLATFORM VC-WIN32)
- 	set(OPENSSL_GENERATE nasm)
-+	set(OPENSSL_UWP_PLATFROM "Win32")
- elseif(_AMD64_)
- 	message(STATUS "x64")
- 	set(OPENSSL_PLATFORM VC-WIN64A)
- 	set(OPENSSL_GENERATE win64a)
-+	set(OPENSSL_UWP_PLATFROM "x64")
- else()
--  message(FATAL_ERROR "Unsupported target architecture")
-+	if (NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-+		message(FATAL_ERROR "Unsupported target architecture")
-+	endif()
-+	message(STATUS "ARM")
-+	set(OPENSSL_UWP_PLATFROM "arm")
+@@ -16,8 +16,15 @@ else()
+ 	message(FATAL_ERROR "Unsupported target architecture")
  endif()
  
--message(STATUS "perl Configure ${OPENSSL_PLATFORM} enable-static-engine no-asm --prefix=${CMAKE_INSTALL_PREFIX}")
--execute_process(COMMAND perl Configure ${OPENSSL_PLATFORM} enable-static-engine no-asm --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-+if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-+	set(OPENSSL_PLATFORM VC-WINUNIVERSAL)
-+	set(OPENSSL_GENERATE winuniversal)
-+	set(OPENSSL_PERL_ARGS "no-dso")
-+else()
-+	set(OPENSSL_PERL_ARGS "enable-static-engine")
+-message(STATUS "perl Configure ${OPENSSL_PLATFORM} disable-capieng enable-static-engine no-asm no-dso no-shared no-tests no-ui-console --prefix=${CMAKE_INSTALL_PREFIX}")
+-execute_process(COMMAND perl Configure ${OPENSSL_PLATFORM} disable-capieng enable-static-engine no-asm no-dso no-shared no-tests no-ui-console --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
++set(OPENSSL_CONFIGURE_ARGS disable-capieng enable-static-engine no-asm no-dso no-shared no-tests no-ui-console)
++
++if(WINDOWS_STORE)
++	set(OPENSSL_PLATFORM ${OPENSSL_PLATFORM}-UWP)
++	set(OPENSSL_CONFIGURE_ARGS ${OPENSSL_CONFIGURE_ARGS} no-uplink)
 +endif()
 +
-+message(STATUS "perl Configure ${OPENSSL_PLATFORM} enable-static-engine no-asm ${OPENSSL_PERL_ARGS} --prefix=${CMAKE_INSTALL_PREFIX}")
-+execute_process(COMMAND perl Configure ${OPENSSL_PLATFORM} enable-static-engine no-asm ${OPENSSL_PERL_ARGS} --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
++message(STATUS "perl Configure ${OPENSSL_PLATFORM} ${OPENSSL_CONFIGURE_ARGS} --prefix=${CMAKE_INSTALL_PREFIX}")
++execute_process(COMMAND perl Configure ${OPENSSL_PLATFORM} ${OPENSSL_CONFIGURE_ARGS} --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
  
- message(STATUS "ms/do_${OPENSSL_GENERATE}.bat")
- execute_process(COMMAND ms\\do_${OPENSSL_GENERATE}.bat WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+ add_custom_target(openssl ALL COMMAND nmake build_generated libcrypto.lib libssl.lib WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
  
--add_custom_target(openssl ALL COMMAND nmake -f ms/ntdll.mak WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-+if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-+	add_custom_command(OUTPUT ${OPENSSL_GENERATE}.out
-+		COMMAND ms/setVSvars.bat universal10.0${OPENSSL_UWP_PLATFROM} ${CMAKE_SYSTEM_VERSION}
-+		COMMAND nmake -f ms/ntdll.mak 
-+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-+		COMMENT "Compiling OpenSSL UWP"
-+	)
-+else()
-+	add_custom_command(OUTPUT ${OPENSSL_GENERATE}.out
-+		COMMAND nmake -f ms/ntdll.mak 
-+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-+		COMMENT "Compiling OpenSSL"
-+	)
-+endif()
+diff --git a/Configurations/50-win-onecore.conf b/Configurations/50-win-onecore.conf
+index 51cb381..ec0cc9e 100644
+--- a/Configurations/50-win-onecore.conf
++++ b/Configurations/50-win-onecore.conf
+@@ -16,13 +16,13 @@ my %targets = (
+         # /NODEFAULTLIB:kernel32.lib is needed, because MSVCRT.LIB has
+         # hidden reference to kernel32.lib, but we don't actually want
+         # it in "onecore" build.
+-        lflags          => add("/NODEFAULTLIB:kernel32.lib"),
++        #lflags          => add("/NODEFAULTLIB:kernel32.lib"),
+         defines         => add("OPENSSL_SYS_WIN_CORE"),
+         ex_libs         => "onecore.lib",
+     },
+     "VC-WIN64A-ONECORE" => {
+         inherit_from    => [ "VC-WIN64A" ],
+-        lflags          => add("/NODEFAULTLIB:kernel32.lib"),
++        #lflags          => add("/NODEFAULTLIB:kernel32.lib"),
+         defines         => add("OPENSSL_SYS_WIN_CORE"),
+         ex_libs         => "onecore.lib",
+     },
+diff --git a/Configurations/50-win-onecore.conf b/Configurations/50-win-onecore.conf
+index c71d3646f23..a42386fc791 100644
+--- a/Configurations/50-win-onecore.conf
++++ b/Configurations/50-win-onecore.conf
+@@ -61,4 +61,43 @@ my %targets = (
+         ex_libs         => "onecore.lib",
+         multilib        => "-arm64",
+     },
 +
-+add_custom_target(openssl ALL DEPENDS ${OPENSSL_GENERATE}.out)
- 
- install(CODE "execute_process(COMMAND nmake -f ms/ntdll.mak install WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")
-diff --git a/ms/setVSvars.bat b/ms/setVSvars.bat
-index 633e605..744d1a9 100644
---- a/ms/setVSvars.bat
-+++ b/ms/setVSvars.bat
-@@ -1,55 +1,35 @@
- @if NOT "%_DEBUG%" GEQ "1" @echo off
- pushd %~dp0\..
-+set sdkVer=%2
-+if "%sdkVer%"=="" set sdkVer=10.0.16299.0
- call:set_%1
- popd
- exit /b
- :set_universal10.0Win32
--	call:setVar _VS15VC VisualStudio15VC
--	if not "%_VS15VC%"=="" (
--		call "%_VS15VC%\vcvarsall" x86 store
--		call:setEnv
--		goto :eof
--	)
--	call:setVar _VS14VC VisualStudio14VC
--	call "%_VS14VC%vcvarsall" x86 store
--	call:setEnv
-+    call:setUniversalVCVars x86
- 	goto :eof
- 
- :set_universal10.0x64
--	call:setVar _VS15VC VisualStudio15VC
--	if not "%_VS15VC%"=="" (
--		call "%_VS15VC%\vcvarsall" x64 store
--		call:setEnv
--		goto :eof
--	)
--	call:setVar _VS14VC VisualStudio14VC
--	call "%_VS14VC%vcvarsall" x64 store
--	call:setEnv
-+    call:setUniversalVCVars x64
- 	goto :eof
- 
- :set_universal10.0arm
--	call:setVar _VS15VC VisualStudio15VC
--	if not "%_VS15VC%"=="" (
--		call "%_VS15VC%\vcvarsall" x86_arm store
--		rem
--		call:setEnv
--		goto :eof
--	)
--	call:setVar _VS14VC VisualStudio14VC
--    rem
--	call "%_VS14VC%vcvarsall" x86_arm store
--	call:setEnv
-+    call:setUniversalVCVars x86_arm
- 	goto :eof
- 
- :set_universal10.0arm64
-+    call:setUniversalVCVars x86_arm64
-+	goto :eof
++	# Universal Windows Platform (UWP) App Support
 +
-+:setUniversalVCVars
-     call:setVar _VS15VC VisualStudio15VC
-     if not "%_VS15VC%"=="" (
--		call "%_VS15VC%\vcvarsall" x86_arm64 store
-+		call "%_VS15VC%\vcvarsall" %1 store %sdkVer%
- 		call:setEnv
- 		goto :eof
- 	)
- 	call:setVar _VS14VC VisualStudio14VC
--	call "%_VS14VC%vcvarsall" x86_arm64 store
-+	call "%_VS14VC%vcvarsall" %1 store %sdkVer%
- 	call:setEnv
- 	goto :eof
- 
-diff --git a/engines/e_aep.c b/engines/e_aep.c
-index 66849f3..fbebdbd 100644
---- a/engines/e_aep.c
-+++ b/engines/e_aep.c
-@@ -69,7 +69,7 @@ typedef int pid_t;
- # define getpid GetThreadID
- extern int GetThreadID(void);
- #elif defined(_WIN32) && !defined(__WATCOMC__)
--# define getpid _getpid
-+# define getpid GetCurrentProcessId
- #endif
- 
- #include <openssl/crypto.h>
++    "VC-WIN32-UWP" => {
++        inherit_from    => [ "VC-WIN32-ONECORE" ],
++        cflags          => add("/FIms\\uwp_applink.h"),
++        cppflags        => add("/FIms\\uwp_applink.h"),
++        lflags          => add("/APPCONTAINER"),
++        defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
++                               "_WIN32_WINNT=0x0A00"),
++        ex_libs         => "WindowsApp.lib",
++    },
++     "VC-WIN64A-UWP" => {
++        inherit_from    => [ "VC-WIN64A-ONECORE" ],
++        cflags          => add("/FIms\\uwp_applink.h"),
++        cppflags        => add("/FIms\\uwp_applink.h"),
++        lflags          => add("/APPCONTAINER"),
++        defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
++                               "_WIN32_WINNT=0x0A00"),
++        ex_libs         => "WindowsApp.lib",
++    },
++    "VC-WIN32-ARM-UWP" => {
++        inherit_from    => [ "VC-WIN32-ARM" ],
++        cflags          => add("/FIms\\uwp_applink.h"),
++        cppflags        => add("/FIms\\uwp_applink.h"),
++        lflags          => add("/APPCONTAINER"),
++        defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
++                               "_WIN32_WINNT=0x0A00"),
++        ex_libs         => "WindowsApp.lib",
++    },
++     "VC-WIN64-ARM-UWP" => {
++        inherit_from    => [ "VC-WIN64-ARM" ],
++        cflags          => add("/FIms\\uwp_applink.h"),
++        cppflags        => add("/FIms\\uwp_applink.h"),
++        lflags          => add("/APPCONTAINER"),
++        defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
++                               "_WIN32_WINNT=0x0A00"),
++        ex_libs         => "WindowsApp.lib",
++    },
+ );
+diff --git a/ms/uwp_applink.h b/ms/uwp_applink.h
+new file mode 100644
+index 00000000000..1caba397081
+--- /dev/null
++++ b/ms/uwp_applink.h
+@@ -0,0 +1,12 @@
++/*
++ * Copyright 2018-2018 The OpenSSL Project Authors. All Rights Reserved.
++ *
++ * Licensed under the OpenSSL license (the "License").  You may not use
++ * this file except in compliance with the License.  You can obtain a copy
++ * in the file LICENSE in the source distribution or at
++ * https://www.openssl.org/source/license.html
++ */
++
++/* Universal Windows Platform (UWP) App Support */
++
++#define GetModuleHandle(lpModuleName) ((HANDLE)NULL)
+\ No newline at end of file
+diff --git a/Configurations/10-main.conf b/Configurations/10-main.conf
+index 5cf345da0..e98ea6f92 100644
+--- a/Configurations/10-main.conf
++++ b/Configurations/10-main.conf
+@@ -1290,7 +1290,7 @@ my %targets = (
+     },
+     "VC-WIN64I" => {
+         inherit_from     => [ "VC-WIN64-common", asm("ia64_asm"),
+-                              sub { $disabled{shared} ? () : "ia64_uplink" } ],
++                              sub { $disabled{uplink} ? () : "ia64_uplink" } ],
+         AS               => "ias",
+         ASFLAGS          => "-d debug",
+         asoutflag        => "-o ",
+@@ -1302,7 +1302,7 @@ my %targets = (
+     },
+     "VC-WIN64A" => {
+         inherit_from     => [ "VC-WIN64-common", asm("x86_64_asm"),
+-                              sub { $disabled{shared} ? () : "x86_64_uplink" } ],
++                              sub { $disabled{uplink} ? () : "x86_64_uplink" } ],
+         AS               => sub { vc_win64a_info()->{AS} },
+         ASFLAGS          => sub { vc_win64a_info()->{ASFLAGS} },
+         asoutflag        => sub { vc_win64a_info()->{asoutflag} },
+@@ -1315,7 +1315,7 @@ my %targets = (
+     },
+     "VC-WIN32" => {
+         inherit_from     => [ "VC-noCE-common", asm("x86_asm"),
+-                              sub { $disabled{shared} ? () : "uplink_common" } ],
++                              sub { $disabled{uplink} ? () : "uplink_common" } ],
+         CFLAGS           => add("/WX"),
+         AS               => sub { vc_win32_info()->{AS} },
+         ASFLAGS          => sub { vc_win32_info()->{ASFLAGS} },
+@@ -1378,7 +1378,7 @@ my %targets = (
+ #### MinGW
+     "mingw" => {
+         inherit_from     => [ "BASE_unix", asm("x86_asm"),
+-                              sub { $disabled{shared} ? () : "x86_uplink" } ],
++                              sub { $disabled{uplink} ? () : "x86_uplink" } ],
+         CC               => "gcc",
+         CFLAGS           => picker(default => "-Wall",
+                                    debug   => "-g -O0",
+diff --git a/Configurations/50-win-onecore.conf b/Configurations/50-win-onecore.conf
+index b6291a558..606be55db 100644
+--- a/Configurations/50-win-onecore.conf
++++ b/Configurations/50-win-onecore.conf
+@@ -71,6 +71,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+      "VC-WIN64A-UWP" => {
+@@ -80,6 +81,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+     "VC-WIN32-ARM-UWP" => {
+@@ -89,6 +91,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+      "VC-WIN64-ARM-UWP" => {
+@@ -98,6 +101,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+ );
+d+        disable         => [ 'dso', 'ui-console', 'stdio', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+      "VC-WIN64A-UWP" => {
+@@ -80,6 +81,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+     "VC-WIN32-ARM-UWP" => {
+@@ -89,6 +91,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+      "VC-WIN64-ARM-UWP" => {
+@@ -98,6 +101,7 @@ my %targets = (
+         lflags          => add("/APPCONTAINER"),
+         defines         => add("WINAPI_FAMILY=WINAPI_FAMILY_APP",
+                                "_WIN32_WINNT=0x0A00"),
++        disable         => [ 'dso', 'ui-console', 'async' ],
+         ex_libs         => "WindowsApp.lib",
+     },
+ );
+diff --git a/Configure b/Configure
+index d5dc36c28..f9cf4f524 100755
+--- a/Configure
++++ b/Configure
+@@ -409,6 +409,7 @@ my @disablables = (
+     "ubsan",
+     "ui-console",
+     "unit-test",
++    "uplink",
+     "whirlpool",
+     "weak-ssl-ciphers",
+     "zlib",
+@@ -482,7 +483,7 @@ my @disable_cascades = (
+
+     # Without position independent code, there can be no shared libraries or DSOs
+     "pic"               => [ "shared" ],
+-    "shared"            => [ "dynamic-engine" ],
++    "shared"            => [ "dynamic-engine", "uplink" ],
+     "engine"            => [ "afalgeng", "devcryptoeng" ],
+
+     # no-autoalginit is only useful when building non-shared
 -- 
-2.10.2.windows.1
+2.21.0.windows.1
 
