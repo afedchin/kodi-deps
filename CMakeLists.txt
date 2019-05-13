@@ -730,33 +730,36 @@ ExternalProject_Add(mysql-connector-c
 add_dependency_project_package(mysql-connector-c 6.1.9)
 
 ExternalProject_Add(mariadb-connector-c
-	DEPENDS zlib openssl libiconv curl
+	DEPENDS zlib openssl libiconv
 	DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-	DOWNLOAD_NAME mariadb-connector-c-v3.0.4.tar.gz
-	URL https://github.com/MariaDB/mariadb-connector-c/archive/v3.0.4.tar.gz
-	URL_HASH SHA256=49721e5aaff6107e84badc64f524d2b3606049ce6141003f19b89057d6d12040
+	URL https://downloads.mariadb.com/Connectors/c/connector-c-3.0.6/mariadb-connector-c-3.0.6-src.tar.gz
+	URL_HASH SHA256=2b2d18dc969dc385f7f740e4db112300e11bc626c9ba9aa05c284704095b9e48
 	PATCH_COMMAND 
+		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName).diff
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0001-uwp-fix-build.patch
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0002-add-external-iconv-support-on-windows.patch
 		COMMAND ${PATCH} -p1 -i ${CMAKE_SOURCE_DIR}/patches/$(TargetName)/0003-fix-plugins-with-ext-deps.patch
 	CMAKE_ARGS
 		${ADDITIONAL_ARGS}
 		-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_PREFIX}
-		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}%3B%3B${PACKAGES_DIRECTORY}/curl%3B%3B${PACKAGES_DIRECTORY}/libiconv%3B%3B${PACKAGES_DIRECTORY}/openssl%3B%3B${PACKAGES_DIRECTORY}/zlib
-		-DBUILD_SHARED_LIBS:BOOL=ON
+		-DCMAKE_PREFIX_PATH:PATH=${PACKAGES_DIRECTORY}/libiconv%3B%3B${PACKAGES_DIRECTORY}/openssl%3B%3B${PACKAGES_DIRECTORY}/zlib
+		-DBUILD_SHARED_LIBS:BOOL=OFF
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo
-		-DINSTALL_DOC:BOOL=OFF
-		-DWITH_UNITTEST:BOOL=OFF
-		-DCLIENT_DOCS:BOOL=OFF
-		-DWITH_SSL:BOOL=ON
+		-DWITH_SSL:STRING=OPENSSL
 		-DWITH_EXTERNAL_ZLIB:BOOL=ON
 		-DICONV_EXTERNAL:BOOL=ON
-		-DWITH_CURL:BOOL=ON
+		-DWITH_CURL:BOOL=OFF
+		-DPLUGIN_AUTH_GSSAPI_CLIENT:STRING=OFF
+		-DPLUGIN_DIALOG:BOOL=OFF
+		-DPLUGIN_MYSQL_CLEAR_PASSWORD:STRING=STATIC
 		-DCLIENT_PLUGIN_PVIO_NPIPE:STRING=STATIC
 		-DCLIENT_PLUGIN_PVIO_SHMEM:STRING=STATIC
 		-DCLIENT_PLUGIN_REMOTE_IO:STRING=STATIC
+		-DPLUGIN_SHA256_PASSWORD:STRING=STATIC
+		-DSKIP_TESTS:BOOL=ON
+		-DWITH_UNITTEST:BOOL=OFF
 )
-add_dependency_project_package(mariadb-connector-c 3.0.4)
+add_dependency_project_package(mariadb-connector-c 3.0.6)
 
 ExternalProject_Add(python
 	DEPENDS bzip2 openssl sqlite zlib

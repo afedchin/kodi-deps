@@ -2,7 +2,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 935d416..6b551ea 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -112,7 +112,7 @@ IF(MSVC)
+@@ -111,7 +111,7 @@ IF(MSVC)
        FOREACH(COMPILER CXX C)
          SET(COMPILER_FLAGS "${CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}}")
          IF (NOT COMPILER_FLAGS STREQUAL "")
@@ -11,7 +11,7 @@ index 935d416..6b551ea 100644
            IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
              SET(COMPILER_FLAGS "${COMPILER_FLAGS} ${RTC_OPTIONS}")
              STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
-@@ -242,6 +242,9 @@ IF(WIN32)
+@@ -241,6 +241,9 @@ IF(WIN32)
    SET(HAVE_THREADS 1)
    ADD_DEFINITIONS(-DHAVE_DLOPEN)
    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
@@ -21,7 +21,7 @@ index 935d416..6b551ea 100644
    IF(MSVC)
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996" )
    ENDIF()
-@@ -261,7 +264,7 @@ IF(WITH_SSL)
+@@ -268,7 +271,7 @@ IF(WITH_SSL)
    STRING(TOUPPER ${WITH_SSL} WITH_SSL)
  ENDIF()
  IF(WITH_SSL STREQUAL "ON")
@@ -30,7 +30,7 @@ index 935d416..6b551ea 100644
      SET(WITH_SSL "SCHANNEL")
    ELSE()
      SET(WITH_SSL "OPENSSL")
-@@ -376,15 +379,15 @@ ENDIF()
+@@ -384,15 +387,15 @@ ENDIF()
  
  IF(IS_DIRECTORY ${CC_SOURCE_DIR}/unittest)
    IF(WITH_UNIT_TESTS)
@@ -55,17 +55,13 @@ diff --git a/cmake/install.cmake b/cmake/install.cmake
 index 04834d9..8bbff3c 100644
 --- a/cmake/install.cmake
 +++ b/cmake/install.cmake
-@@ -67,23 +67,23 @@ ENDIF()
- 
- 
- SET(INSTALL_BINDIR_DEFAULT "bin")
--SET(INSTALL_LIBDIR_DEFAULT "lib/mariadb")
-+SET(INSTALL_LIBDIR_DEFAULT "lib")
+@@ -70,20 +70,20 @@ ENDIF()
+ SET(INSTALL_LIBDIR_DEFAULT "lib/mariadb")
  SET(INSTALL_INCLUDEDIR_DEFAULT "include/mariadb")
  SET(INSTALL_DOCDIR_DEFAULT "docs")
 -SET(INSTALL_PLUGINDIR_DEFAULT "lib/mariadb/plugin")
 +SET(INSTALL_PLUGINDIR_DEFAULT "bin")
- 
+ SET(LIBMARIADB_STATIC_DEFAULT "mariadbclient")
  #
  # RPM layout
  #
@@ -73,7 +69,7 @@ index 04834d9..8bbff3c 100644
  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 -  SET(INSTALL_LIBDIR_RPM "lib64/mariadb")
 -  SET(INSTALL_PLUGINDIR_RPM "lib64/mariadb/plugin")
-+  SET(INSTALL_LIBDIR_RPM "lib")
++  SET(INSTALL_LIBDIR_RPM "lib//mariadb")
 +  SET(INSTALL_PLUGINDIR_RPM "bin")
  ELSE()
    SET(INSTALL_LIBDIR_RPM "lib")
@@ -114,7 +110,7 @@ diff --git a/libmariadb/CMakeLists.txt b/libmariadb/CMakeLists.txt
 index 430020b..684245c 100644
 --- a/libmariadb/CMakeLists.txt
 +++ b/libmariadb/CMakeLists.txt
-@@ -438,10 +438,14 @@ SET_TARGET_PROPERTIES(libmariadb PROPERTIES VERSION
+@@ -438,7 +438,9 @@ SET_TARGET_PROPERTIES(libmariadb PROPERTIES VERSION
  
  INSTALL(TARGETS mariadbclient
            COMPONENT Development
@@ -122,15 +118,9 @@ index 430020b..684245c 100644
 +        RUNTIME DESTINATION ${INSTALL_BINDIR}
 +        LIBRARY DESTINATION ${INSTALL_LIBDIR}
 +        ARCHIVE DESTINATION ${INSTALL_LIBDIR})
- INSTALL(TARGETS libmariadb
-           COMPONENT SharedLibraries
--        DESTINATION ${INSTALL_LIBDIR})
-+        RUNTIME DESTINATION ${INSTALL_BINDIR}
-+        LIBRARY DESTINATION ${INSTALL_LIBDIR}
-+        ARCHIVE DESTINATION ${INSTALL_LIBDIR})
+
  
  IF(WIN32)
-    # On Windows, install PDB
 diff --git a/libmariadb/ma_client_plugin.c.in b/libmariadb/ma_client_plugin.c.in
 index 8d61d31..df2765c 100644
 --- a/libmariadb/ma_client_plugin.c.in
@@ -141,7 +131,7 @@ index 8d61d31..df2765c 100644
  #endif
 -  char dlpath[FN_REFLEN+1];
 +  wchar_t dlpath[FN_REFLEN+1];
-   void *sym, *dlhandle;
+   void *sym, *dlhandle = NULL;
    struct st_mysql_client_plugin *plugin;
    char *env_plugin_dir= getenv("MARIADB_PLUGIN_DIR");
 @@ -383,19 +383,19 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
